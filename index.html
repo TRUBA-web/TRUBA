@@ -21,8 +21,8 @@
     --bubble-in: #FFFFFF;
     --bubble-out: #EFFDDE;
     --bubble-out-text: #1B1B1B;
-    --system: #6C7A89;
     --danger: #E53935;
+    --online: #4CD964;
   }
 
   * { box-sizing: border-box; }
@@ -36,10 +36,11 @@
     justify-content: center;
   }
   input, textarea, button { font-family: inherit; }
+  a { color: inherit; }
 
   /* ---------- Auth screen ---------- */
   #auth-screen {
-    width: 380px;
+    width: 400px;
     max-width: 92vw;
     background: #fff;
     border-radius: 16px;
@@ -47,7 +48,7 @@
     box-shadow: 0 10px 40px rgba(0,0,0,0.12);
     border: 1px solid var(--border);
   }
-  .logo-row { display: flex; flex-direction: column; align-items: center; gap: 12px; margin-bottom: 28px; }
+  .logo-row { display: flex; flex-direction: column; align-items: center; gap: 12px; margin-bottom: 26px; }
   .logo-badge {
     width: 64px; height: 64px; border-radius: 50%;
     background: linear-gradient(135deg, var(--tg-blue), var(--tg-blue-2));
@@ -68,7 +69,10 @@
   .switch-row { text-align: center; margin-top: 18px; font-size: 14px; color: var(--muted); }
   .switch-link { color: var(--tg-blue-2); cursor: pointer; font-weight: 600; }
   .error-text { color: var(--danger); font-size: 13px; margin-top: 2px; min-height: 16px; }
-  .fine-print { margin-top: 22px; font-size: 11.5px; color: #9AA0A6; line-height: 1.5; text-align: center; }
+  .code-desc { font-size: 13.5px; color: var(--muted); line-height: 1.5; margin-bottom: 16px; text-align: center; }
+  .code-desc b { color: var(--text); }
+  .back-link { display: block; text-align: center; margin-top: 14px; font-size: 13.5px; color: var(--tg-blue-2);
+    cursor: pointer; }
 
   /* ---------- App screen ---------- */
   #app-screen { display: none; width: 100%; height: 100vh; }
@@ -78,9 +82,13 @@
     display: flex; flex-direction: column; flex-shrink: 0; }
   .sidebar-header { padding: 14px 16px; display: flex; align-items: center; justify-content: space-between;
     border-bottom: 1px solid var(--border); }
-  .me-row { display: flex; align-items: center; gap: 10px; overflow: hidden; }
+  .me-row { display: flex; align-items: center; gap: 10px; overflow: hidden; cursor: pointer; border-radius: 10px;
+    padding: 4px; margin: -4px; }
+  .me-row:hover { background: var(--hover); }
   .avatar { border-radius: 50%; display: flex; align-items: center; justify-content: center;
-    font-weight: 600; flex-shrink: 0; color: #fff; }
+    font-weight: 600; flex-shrink: 0; color: #fff; position: relative; }
+  .avatar .presence-dot { position: absolute; width: 11px; height: 11px; border-radius: 50%; background: var(--online);
+    border: 2px solid #fff; bottom: -1px; right: -1px; display: none; }
   .app-name { font-size: 19px; font-weight: 700; }
   .me-name { font-size: 13px; color: var(--muted); }
   .icon-btn { background: transparent; border: none; color: var(--muted); cursor: pointer; padding: 8px;
@@ -98,7 +106,7 @@
 
   .chat-panel { flex: 1; display: flex; flex-direction: column; background: var(--chat-bg); min-width: 0; }
   .chat-header { padding: 12px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center;
-    gap: 12px; background: #fff; }
+    gap: 12px; background: #fff; cursor: pointer; }
   .chat-header-name { font-weight: 600; font-size: 16px; }
   .chat-header-sub { font-size: 12.5px; color: var(--muted); }
   .messages { flex: 1; overflow-y: auto; padding: 18px 24px; display: flex; flex-direction: column; gap: 4px; }
@@ -109,20 +117,46 @@
     background: var(--bubble-in); color: var(--text); box-shadow: 0 1px 1px rgba(0,0,0,0.06); }
   .msg-row.mine .bubble { background: var(--bubble-out); color: var(--bubble-out-text); border-bottom-right-radius: 4px; }
   .msg-row.theirs .bubble { border-bottom-left-radius: 4px; }
-  .msg-time { font-size: 11px; color: var(--muted); margin-top: 3px; padding: 0 4px; }
-  .composer { padding: 12px 20px; border-top: 1px solid var(--border); display: flex; gap: 10px; background: #fff; }
+  .msg-meta { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--muted); margin-top: 3px; padding: 0 4px; }
+  .ticks { font-size: 13px; letter-spacing: -2px; }
+  .ticks.read { color: var(--tg-blue); }
+  .ticks.sent { color: var(--muted); }
+  .composer { padding: 12px 20px; border-top: 1px solid var(--border); display: flex; gap: 10px; background: #fff; align-items: center; }
   .composer textarea { flex: 1; resize: none; background: #F5F5F5; border: 1px solid transparent;
     border-radius: 20px; color: var(--text); padding: 11px 16px; font-size: 15px; outline: none; }
   .composer textarea:focus { border-color: var(--tg-blue); background: #fff; }
   .composer textarea:disabled { color: var(--muted); }
   .send-btn { background: var(--tg-blue); border: none; border-radius: 50%;
     width: 42px; height: 42px; display: flex; align-items: center; justify-content: center; cursor: pointer;
-    flex-shrink: 0; }
+    flex-shrink: 0; position: relative; }
   .send-btn:disabled { background: #C6C6C6; cursor: default; }
+  .send-btn.sending svg { display: none; }
+  .send-btn.sending::after {
+    content: ""; width: 16px; height: 16px; border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.5); border-top-color: #fff;
+    animation: spin 0.7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
   .placeholder-center { margin: auto; text-align: center; color: var(--muted); padding: 20px; }
 
   .system-note { align-self: center; font-size: 12.5px; color: var(--muted); background: #fff;
     padding: 6px 12px; border-radius: 10px; margin: 8px 0; box-shadow: 0 1px 1px rgba(0,0,0,0.06); }
+
+  /* ---------- Profile modal ---------- */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: none;
+    align-items: center; justify-content: center; z-index: 100; }
+  .modal-box { width: 340px; max-width: 90vw; background: #fff; border-radius: 16px; padding: 28px 24px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3); position: relative; }
+  .modal-close { position: absolute; top: 14px; right: 14px; background: transparent; border: none;
+    color: var(--muted); cursor: pointer; padding: 4px; }
+  .modal-avatar-row { display: flex; flex-direction: column; align-items: center; gap: 10px; margin-bottom: 20px; }
+  .modal-username { font-size: 15px; color: var(--muted); }
+  .modal-label { font-size: 12.5px; color: var(--muted); font-weight: 600; margin: 14px 0 6px; }
+  .modal-bio-view { font-size: 14.5px; line-height: 1.5; color: var(--text); min-height: 20px; }
+  .modal-bio-input { width: 100%; background: #F5F5F5; border: 1px solid transparent; border-radius: 10px;
+    color: var(--text); padding: 11px 13px; font-size: 14.5px; outline: none; resize: none; }
+  .modal-bio-input:focus { border-color: var(--tg-blue); background: #fff; }
+  .modal-save-hint { font-size: 12.5px; color: var(--online); margin-top: 8px; min-height: 16px; }
 </style>
 </head>
 <body>
@@ -134,23 +168,39 @@
       <svg width="30" height="30" viewBox="0 0 24 24" fill="none"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V6a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v9Z" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </div>
     <h1 class="logo-title">TRUBA</h1>
-    <p class="subtitle" id="auth-subtitle">Войдите, чтобы продолжить переписку</p>
+    <p class="subtitle">Быстрый и удобный мессенджер</p>
   </div>
 
-  <input class="field" id="username-input" placeholder="Имя пользователя" autocomplete="username" />
-  <input class="field" id="password-input" type="password" placeholder="Пароль" autocomplete="current-password" />
-  <div class="error-text" id="auth-error"></div>
-
-  <button class="primary-btn" id="auth-submit-btn">Войти</button>
-
-  <div class="switch-row">
-    <span id="switch-prompt">Нет аккаунта? </span>
-    <span class="switch-link" id="switch-link">Зарегистрироваться</span>
+  <!-- LOGIN VIEW -->
+  <div id="view-login">
+    <input class="field" id="login-username" placeholder="Имя пользователя" autocomplete="username" />
+    <input class="field" id="login-password" type="password" placeholder="Пароль" autocomplete="current-password" />
+    <div class="error-text" id="login-error"></div>
+    <button class="primary-btn" id="login-btn">Войти</button>
+    <div class="switch-row">
+      Нет аккаунта? <span class="switch-link" id="go-register">Зарегистрироваться</span>
+    </div>
   </div>
 
-  <div class="fine-print">
-    TRUBA — ваш месенджер.Для защиты от мошенников
-    не используйте настоящие пароли от других сервисов.
+  <!-- REGISTER VIEW -->
+  <div id="view-register" style="display:none;">
+    <input class="field" id="reg-username" placeholder="Имя пользователя" autocomplete="username" />
+    <input class="field" id="reg-email" placeholder="Email (Gmail и др.)" autocomplete="email" />
+    <input class="field" id="reg-password" type="password" placeholder="Пароль" autocomplete="new-password" />
+    <div class="error-text" id="reg-error"></div>
+    <button class="primary-btn" id="reg-btn">Получить код</button>
+    <div class="switch-row">
+      Уже есть аккаунт? <span class="switch-link" id="go-login">Войти</span>
+    </div>
+  </div>
+
+  <!-- CODE VIEW -->
+  <div id="view-code" style="display:none;">
+    <div class="code-desc">Мы отправили 6-значный код на <b id="code-target-email"></b>. Введите его ниже, чтобы завершить регистрацию.</div>
+    <input class="field" id="code-input" placeholder="Код из письма" inputmode="numeric" maxlength="6" />
+    <div class="error-text" id="code-error"></div>
+    <button class="primary-btn" id="code-btn">Подтвердить и войти</button>
+    <span class="back-link" id="code-back">Изменить данные</span>
   </div>
 </div>
 
@@ -159,7 +209,7 @@
   <div class="app-shell">
     <div class="sidebar">
       <div class="sidebar-header">
-        <div class="me-row">
+        <div class="me-row" id="me-profile-btn">
           <div class="avatar" id="me-avatar" style="width:38px;height:38px;font-size:15px;"></div>
           <div>
             <div class="app-name">TRUBA</div>
@@ -189,7 +239,7 @@
         <div style="font-size:15px;">Выберите чат слева, чтобы начать переписку</div>
       </div>
       <div id="chat-active" style="display:none; height:100%; flex-direction:column;">
-        <div class="chat-header">
+        <div class="chat-header" id="chat-header">
           <div class="avatar" id="chat-avatar" style="width:36px;height:36px;font-size:14px;"></div>
           <div>
             <div class="chat-header-name" id="chat-header-name"></div>
@@ -208,7 +258,42 @@
   </div>
 </div>
 
-<!-- ================= FIREBASE ================= -->
+<!-- ================= OWN PROFILE MODAL ================= -->
+<div class="modal-overlay" id="profile-modal">
+  <div class="modal-box">
+    <button class="modal-close" id="profile-close">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M18 6 6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    </button>
+    <div class="modal-avatar-row">
+      <div class="avatar" id="profile-avatar" style="width:72px;height:72px;font-size:26px;"></div>
+      <div class="modal-username" id="profile-username"></div>
+    </div>
+    <div class="modal-label">О себе</div>
+    <textarea class="modal-bio-input" id="profile-bio-input" rows="3" placeholder="Напишите пару слов о себе..."></textarea>
+    <button class="primary-btn" id="profile-save-btn">Сохранить</button>
+    <div class="modal-save-hint" id="profile-save-hint"></div>
+  </div>
+</div>
+
+<!-- ================= CONTACT PROFILE MODAL (view-only) ================= -->
+<div class="modal-overlay" id="contact-modal">
+  <div class="modal-box">
+    <button class="modal-close" id="contact-close">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M18 6 6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    </button>
+    <div class="modal-avatar-row">
+      <div class="avatar" id="contact-modal-avatar" style="width:72px;height:72px;font-size:26px;"></div>
+      <div class="modal-username" id="contact-modal-username"></div>
+    </div>
+    <div class="modal-label">О себе</div>
+    <div class="modal-bio-view" id="contact-modal-bio"></div>
+  </div>
+</div>
+
+<!-- ================= EMAILJS ================= -->
+<script type="module" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+
+<!-- ================= FIREBASE + APP LOGIC ================= -->
 <script type="module">
 console.log("[TRUBA] JavaScript started");
 
@@ -219,9 +304,12 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {
   getFirestore, doc, setDoc, getDoc, collection, query, where,
-  onSnapshot, addDoc, serverTimestamp, orderBy
+  onSnapshot, addDoc, serverTimestamp, orderBy, arrayUnion
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
+// ======================================================================
+// FIREBASE CONFIG — уже подставлен твой рабочий конфиг
+// ======================================================================
 const firebaseConfig = {
   apiKey: "AIzaSyDJdfwM0tOJEOUsdN-VDtW7oWatJOi5obo",
   authDomain: "truba-9fc31.firebaseapp.com",
@@ -231,24 +319,42 @@ const firebaseConfig = {
   appId: "1:723117237157:web:a36f926b71a00a0be17e4c"
 };
 
-const EMAIL_DOMAIN = "truba.local";
+// ======================================================================
+// EMAILJS CONFIG — сюда нужно вставить СВОИ ключи с emailjs.com
+// (без этого письма с кодом отправляться не будут — см. инструкцию)
+// ======================================================================
+const EMAILJS_PUBLIC_KEY = "YOUR_EMAILJS_PUBLIC_KEY";
+const EMAILJS_SERVICE_ID = "YOUR_EMAILJS_SERVICE_ID";
+const EMAILJS_TEMPLATE_ID = "YOUR_EMAILJS_TEMPLATE_ID";
+
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-let mode = "login";
+if (window.emailjs) {
+  window.emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
+}
+
+const MAX_ACCOUNTS_PER_EMAIL = 3;
+
 let currentUid = null;
 let currentUsername = null;
-let activeContact = null;
+let currentBio = "";
+let activeContact = null; // {uid, username} or "system"
 let unsubMessages = null;
+let unsubReads = null;
 let unsubUsers = null;
+let unsubContactPresence = null;
+let contactLastReadMillis = 0;
+let cachedMessages = [];
+let pendingReg = null; // {rawEmail, aliasEmail, baseEmail, aliasNum, username, password, code}
 
 const WELCOME_MESSAGES = [
   "Добро пожаловать в TRUBA! 👋",
-  "TRUBA — простой, быстрый и без лишнего.",
-  "Зарегистрируйте друга, и вы получите подарок.",
-  "Спасибо, что пользуетесь веб-мессенджером TRUBA!",
-  "— команда разработчиков"
+  "Пишите друзьям, делитесь новостями — быстро и без лишнего.",
+  "Найдите друга в списке слева или позовите его зарегистрироваться.",
+  "Спасибо, что вы с нами!",
+  "— команда TRUBA"
 ];
 
 function el(id) { return document.getElementById(id); }
@@ -264,7 +370,12 @@ function convId(a, b) { return [a, b].sort().join("__"); }
 function timeStr(ts) {
   if (!ts) return "";
   const d = ts.toDate ? ts.toDate() : new Date(ts);
-  return d.toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"});
+  return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
+function tsMillis(ts) {
+  if (!ts) return 0;
+  return ts.toMillis ? ts.toMillis() : new Date(ts).getTime();
 }
 
 function escapeHtml(str) {
@@ -273,114 +384,267 @@ function escapeHtml(str) {
   return d.innerHTML;
 }
 
-function showError(text) {
-  el("auth-error").textContent = text || "";
+function generateCode() {
+  return String(Math.floor(100000 + Math.random() * 900000));
 }
+
+function normalizeBaseEmail(raw) {
+  const parts = raw.trim().toLowerCase().split("@");
+  if (parts.length !== 2 || !parts[0] || !parts[1]) return null;
+  let local = parts[0].split("+")[0];
+  const domain = parts[1];
+  if (domain === "gmail.com" || domain === "googlemail.com") {
+    local = local.replace(/\./g, "");
+  }
+  return local + "@" + domain;
+}
+
+function buildAliasEmail(baseEmail, n) {
+  const [local, domain] = baseEmail.split("@");
+  return n === 1 ? baseEmail : (local + "+" + n + "@" + domain);
+}
+
+function isValidEmail(v) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+}
+
+function lastSeenText(presenceData) {
+  if (!presenceData) return "TRUBA";
+  if (presenceData.online) return "в сети";
+  const ms = tsMillis(presenceData.lastSeen);
+  if (!ms) return "TRUBA";
+  const diffMin = Math.floor((Date.now() - ms) / 60000);
+  if (diffMin < 5) return "был(а) только что";
+  if (diffMin < 60) return "был(а) " + diffMin + " мин назад";
+  if (diffMin < 24 * 60) return "был(а) сегодня";
+  return "был(а) давно";
+}
+
+/* ============================ AUTH VIEW SWITCHING ============================ */
+
+function showLoginView() {
+  el("view-login").style.display = "block";
+  el("view-register").style.display = "none";
+  el("view-code").style.display = "none";
+  el("login-error").textContent = "";
+}
+function showRegisterView() {
+  el("view-login").style.display = "none";
+  el("view-register").style.display = "block";
+  el("view-code").style.display = "none";
+  el("reg-error").textContent = "";
+}
+function showCodeView(email) {
+  el("view-login").style.display = "none";
+  el("view-register").style.display = "none";
+  el("view-code").style.display = "block";
+  el("code-target-email").textContent = email;
+  el("code-error").textContent = "";
+  el("code-input").value = "";
+}
+
+el("go-register").addEventListener("click", showRegisterView);
+el("go-login").addEventListener("click", showLoginView);
+el("code-back").addEventListener("click", function () {
+  pendingReg = null;
+  showRegisterView();
+});
+
+/* ============================ ERROR MAPPING ============================ */
 
 function authError(err) {
   console.error("[TRUBA] Firebase error:", err);
   const code = err && err.code;
   if (code === "custom/username-taken") return "Такое имя пользователя уже занято";
-  if (code === "auth/email-already-in-use") return "Такой пользователь уже существует";
-  if (code === "auth/invalid-credential" || code === "auth/wrong-password" || code === "auth/user-not-found") return "Неверное имя пользователя или пароль";
+  if (code === "custom/email-limit") return "На этой почте уже зарегистрировано максимум " + MAX_ACCOUNTS_PER_EMAIL + " аккаунта";
+  if (code === "custom/bad-email") return "Введите корректный email";
+  if (code === "custom/user-not-found") return "Пользователь с таким именем не найден";
+  if (code === "custom/wrong-code") return "Неверный код, проверьте письмо и попробуйте снова";
+  if (code === "auth/email-already-in-use") return "Такой аккаунт уже существует";
+  if (code === "auth/invalid-credential" || code === "auth/wrong-password" || code === "auth/user-not-found") return "Неверный пароль";
   if (code === "auth/weak-password") return "Пароль должен содержать минимум 6 символов";
-  if (code === "auth/operation-not-allowed") return "В Firebase не включён Email/Password";
+  if (code === "auth/operation-not-allowed") return "В Firebase не включён вход по Email/Password";
   if (code === "auth/network-request-failed") return "Ошибка сети";
   if (code === "auth/too-many-requests") return "Слишком много попыток. Попробуйте позже";
   if (code === "permission-denied") return "Firestore запретил доступ. Проверьте Rules";
   return "Ошибка: " + (code || (err && err.message) || "неизвестная");
 }
 
-el("switch-link").addEventListener("click", function() {
-  mode = mode === "login" ? "register" : "login";
-  el("auth-subtitle").textContent = mode === "login" ? "Войдите, чтобы продолжить переписку" : "Создайте аккаунт за 10 секунд";
-  el("auth-submit-btn").textContent = mode === "login" ? "Войти" : "Зарегистрироваться";
-  el("switch-prompt").textContent = mode === "login" ? "Нет аккаунта? " : "Уже есть аккаунт? ";
-  el("switch-link").textContent = mode === "login" ? "Зарегистрироваться" : "Войти";
-  showError("");
-});
+/* ============================ LOGIN ============================ */
 
-el("auth-submit-btn").addEventListener("click", handleAuthSubmit);
-el("password-input").addEventListener("keydown", function(e) {
-  if (e.key === "Enter") handleAuthSubmit();
-});
+el("login-btn").addEventListener("click", handleLogin);
+el("login-password").addEventListener("keydown", function (e) { if (e.key === "Enter") handleLogin(); });
 
-async function handleAuthSubmit() {
-  console.log("[TRUBA] Кнопка нажата:", mode);
-  const username = el("username-input").value.trim();
-  const password = el("password-input").value;
-  showError("");
+async function handleLogin() {
+  const username = el("login-username").value.trim();
+  const password = el("login-password").value;
+  el("login-error").textContent = "";
 
   if (!username || !password) {
-    showError("Заполните имя пользователя и пароль");
+    el("login-error").textContent = "Заполните имя пользователя и пароль";
     return;
   }
 
-  if (!/^[a-zA-Z0-9_]{2,20}$/.test(username)) {
-    showError("Имя: только буквы, цифры и _, 2-20 символов");
-    return;
-  }
-
-  if (password.length < 6) {
-    showError("Пароль должен содержать минимум 6 символов");
-    return;
-  }
-
-  const btn = el("auth-submit-btn");
+  const btn = el("login-btn");
   btn.disabled = true;
   btn.textContent = "Подождите...";
 
-  const email = username.toLowerCase() + "@" + EMAIL_DOMAIN;
-
   try {
-    if (mode === "register") {
-      const lower = username.toLowerCase();
-      const taken = await getDoc(doc(db, "usernames", lower));
-      if (taken.exists()) throw {code:"custom/username-taken"};
-
-      const cred = await createUserWithEmailAndPassword(auth, email, password);
-
-      await setDoc(doc(db, "users", cred.user.uid), {
-        username: username,
-        usernameLower: lower,
-        createdAt: serverTimestamp()
-      });
-
-      await setDoc(doc(db, "usernames", lower), {uid: cred.user.uid});
-      console.log("[TRUBA] Регистрация успешна");
-    } else {
-      await signInWithEmailAndPassword(auth, email, password);
-      console.log("[TRUBA] Вход успешен");
-    }
+    const lower = username.toLowerCase();
+    const unameSnap = await getDoc(doc(db, "usernames", lower));
+    if (!unameSnap.exists()) throw { code: "custom/user-not-found" };
+    const uid = unameSnap.data().uid;
+    const userSnap = await getDoc(doc(db, "users", uid));
+    if (!userSnap.exists()) throw { code: "custom/user-not-found" };
+    const aliasEmail = userSnap.data().aliasEmail;
+    await signInWithEmailAndPassword(auth, aliasEmail, password);
   } catch (err) {
-    showError(authError(err));
+    el("login-error").textContent = authError(err);
     btn.disabled = false;
-    btn.textContent = mode === "login" ? "Войти" : "Зарегистрироваться";
+    btn.textContent = "Войти";
   }
 }
 
-el("logout-btn").addEventListener("click", function() {
-  signOut(auth).catch(function(err) { console.error("[TRUBA] Logout:", err); });
+/* ============================ REGISTER: STEP 1 (send code) ============================ */
+
+el("reg-btn").addEventListener("click", handleRegisterStart);
+
+async function handleRegisterStart() {
+  const username = el("reg-username").value.trim();
+  const rawEmail = el("reg-email").value.trim();
+  const password = el("reg-password").value;
+  el("reg-error").textContent = "";
+
+  if (!username || !rawEmail || !password) {
+    el("reg-error").textContent = "Заполните все поля";
+    return;
+  }
+  if (!/^[a-zA-Z0-9_]{2,20}$/.test(username)) {
+    el("reg-error").textContent = "Имя: только буквы, цифры и _, 2-20 символов";
+    return;
+  }
+  if (!isValidEmail(rawEmail)) {
+    el("reg-error").textContent = "Введите корректный email";
+    return;
+  }
+  if (password.length < 6) {
+    el("reg-error").textContent = "Пароль должен содержать минимум 6 символов";
+    return;
+  }
+
+  const btn = el("reg-btn");
+  btn.disabled = true;
+  btn.textContent = "Отправляем код...";
+
+  try {
+    const lower = username.toLowerCase();
+    const taken = await getDoc(doc(db, "usernames", lower));
+    if (taken.exists()) throw { code: "custom/username-taken" };
+
+    const baseEmail = normalizeBaseEmail(rawEmail);
+    if (!baseEmail) throw { code: "custom/bad-email" };
+
+    const usageSnap = await getDoc(doc(db, "email_usage", baseEmail));
+    const used = usageSnap.exists() ? (usageSnap.data().used || []) : [];
+
+    let aliasNum = null;
+    for (let n = 1; n <= MAX_ACCOUNTS_PER_EMAIL; n++) {
+      if (used.indexOf(n) === -1) { aliasNum = n; break; }
+    }
+    if (aliasNum === null) throw { code: "custom/email-limit" };
+
+    const aliasEmail = buildAliasEmail(baseEmail, aliasNum);
+    const code = generateCode();
+
+    pendingReg = {
+      rawEmail: rawEmail,
+      aliasEmail: aliasEmail,
+      baseEmail: baseEmail,
+      aliasNum: aliasNum,
+      username: username,
+      usernameLower: lower,
+      password: password,
+      code: code
+    };
+
+    if (window.emailjs && EMAILJS_SERVICE_ID !== "YOUR_EMAILJS_SERVICE_ID") {
+      await window.emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
+        to_email: rawEmail,
+        to_name: username,
+        code: code,
+        app_name: "TRUBA"
+      });
+      console.log("[TRUBA] Письмо с кодом отправлено на", rawEmail);
+    } else {
+      console.warn("[TRUBA] EmailJS не настроен — код (для теста):", code);
+      el("reg-error").textContent = "EmailJS не настроен разработчиком — код в консоли браузера (F12): " + code;
+    }
+
+    showCodeView(rawEmail);
+  } catch (err) {
+    el("reg-error").textContent = authError(err);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Получить код";
+  }
+}
+
+/* ============================ REGISTER: STEP 2 (confirm code) ============================ */
+
+el("code-btn").addEventListener("click", handleConfirmCode);
+el("code-input").addEventListener("keydown", function (e) { if (e.key === "Enter") handleConfirmCode(); });
+
+async function handleConfirmCode() {
+  if (!pendingReg) { showRegisterView(); return; }
+  const input = el("code-input").value.trim();
+  el("code-error").textContent = "";
+
+  if (input !== pendingReg.code) {
+    el("code-error").textContent = authError({ code: "custom/wrong-code" });
+    return;
+  }
+
+  const btn = el("code-btn");
+  btn.disabled = true;
+  btn.textContent = "Подождите...";
+
+  try {
+    const cred = await createUserWithEmailAndPassword(auth, pendingReg.aliasEmail, pendingReg.password);
+
+    await setDoc(doc(db, "users", cred.user.uid), {
+      username: pendingReg.username,
+      usernameLower: pendingReg.usernameLower,
+      aliasEmail: pendingReg.aliasEmail,
+      baseEmail: pendingReg.baseEmail,
+      bio: "",
+      createdAt: serverTimestamp()
+    });
+
+    await setDoc(doc(db, "usernames", pendingReg.usernameLower), { uid: cred.user.uid });
+
+    await setDoc(doc(db, "email_usage", pendingReg.baseEmail), {
+      used: arrayUnion(pendingReg.aliasNum)
+    }, { merge: true });
+
+    console.log("[TRUBA] Регистрация завершена");
+    pendingReg = null;
+  } catch (err) {
+    el("code-error").textContent = authError(err);
+    btn.disabled = false;
+    btn.textContent = "Подтвердить и войти";
+  }
+}
+
+/* ============================ LOGOUT ============================ */
+
+el("logout-btn").addEventListener("click", async function () {
+  await setPresence(false);
+  signOut(auth).catch(function (err) { console.error("[TRUBA] Logout:", err); });
 });
 
-function showAuth() {
-  el("auth-screen").style.display = "block";
-  el("app-screen").style.display = "none";
-  el("auth-submit-btn").disabled = false;
-  el("auth-submit-btn").textContent = mode === "login" ? "Войти" : "Зарегистрироваться";
-}
+/* ============================ AUTH STATE ============================ */
 
-function showApp() {
-  el("auth-screen").style.display = "none";
-  el("app-screen").style.display = "block";
-  el("me-name").textContent = currentUsername;
-  el("me-avatar").style.background = hashColor(currentUsername);
-  el("me-avatar").textContent = currentUsername.charAt(0).toUpperCase();
-  el("system-chat-row").onclick = openSystemChat;
-  listenUsers();
-}
-
-onAuthStateChanged(auth, async function(user) {
+onAuthStateChanged(auth, async function (user) {
   console.log("[TRUBA] Auth state:", user ? user.uid : "logged out");
 
   if (!user) {
@@ -388,7 +652,9 @@ onAuthStateChanged(auth, async function(user) {
     currentUsername = null;
     activeContact = null;
     if (unsubMessages) { unsubMessages(); unsubMessages = null; }
+    if (unsubReads) { unsubReads(); unsubReads = null; }
     if (unsubUsers) { unsubUsers(); unsubUsers = null; }
+    if (unsubContactPresence) { unsubContactPresence(); unsubContactPresence = null; }
     showAuth();
     return;
   }
@@ -397,25 +663,68 @@ onAuthStateChanged(auth, async function(user) {
 
   try {
     const profile = await getDoc(doc(db, "users", user.uid));
-    currentUsername = profile.exists() ? profile.data().username : (user.email || "user").split("@")[0];
+    if (profile.exists()) {
+      currentUsername = profile.data().username;
+      currentBio = profile.data().bio || "";
+    } else {
+      currentUsername = (user.email || "user").split("@")[0];
+      currentBio = "";
+    }
   } catch (err) {
     console.error("[TRUBA] Profile:", err);
     currentUsername = (user.email || "user").split("@")[0];
   }
 
   showApp();
+  setPresence(true);
 });
+
+window.addEventListener("beforeunload", function () { setPresence(false); });
+document.addEventListener("visibilitychange", function () {
+  if (!currentUid) return;
+  setPresence(document.visibilityState === "visible");
+});
+
+async function setPresence(online) {
+  if (!currentUid) return;
+  try {
+    await setDoc(doc(db, "presence", currentUid), {
+      online: online,
+      lastSeen: serverTimestamp()
+    }, { merge: true });
+  } catch (err) {
+    console.error("[TRUBA] Presence:", err);
+  }
+}
+
+function showAuth() {
+  el("auth-screen").style.display = "block";
+  el("app-screen").style.display = "none";
+  showLoginView();
+}
+
+function showApp() {
+  el("auth-screen").style.display = "none";
+  el("app-screen").style.display = "block";
+  el("me-name").textContent = "@" + currentUsername;
+  el("me-avatar").style.background = hashColor(currentUsername);
+  el("me-avatar").textContent = currentUsername.charAt(0).toUpperCase();
+  el("system-chat-row").onclick = openSystemChat;
+  listenUsers();
+}
+
+/* ============================ USER LIST ============================ */
 
 function listenUsers() {
   if (unsubUsers) unsubUsers();
 
-  unsubUsers = onSnapshot(query(collection(db, "users")), function(snapshot) {
+  unsubUsers = onSnapshot(query(collection(db, "users")), function (snapshot) {
     const list = el("user-list");
     list.innerHTML = "";
 
     const users = [];
-    snapshot.forEach(function(item) {
-      if (item.id !== currentUid) users.push({uid:item.id, username:item.data().username});
+    snapshot.forEach(function (item) {
+      if (item.id !== currentUid) users.push({ uid: item.id, username: item.data().username, bio: item.data().bio || "" });
     });
 
     if (!users.length) {
@@ -426,7 +735,7 @@ function listenUsers() {
       return;
     }
 
-    users.forEach(function(user) {
+    users.forEach(function (user) {
       const row = document.createElement("div");
       row.className = "user-row";
 
@@ -444,28 +753,33 @@ function listenUsers() {
       name.textContent = user.username;
       const sub = document.createElement("div");
       sub.className = "user-row-sub";
-      sub.textContent = "нажмите, чтобы написать";
+      sub.textContent = "@" + user.username;
 
       info.appendChild(name);
       info.appendChild(sub);
       row.appendChild(avatar);
       row.appendChild(info);
-      row.addEventListener("click", function() { openConversation(user, row); });
+      row.addEventListener("click", function () { openConversation(user, row); });
       list.appendChild(row);
     });
-  }, function(err) {
+  }, function (err) {
     console.error("[TRUBA] Users:", err);
   });
 }
 
+/* ============================ SYSTEM WELCOME CHAT ============================ */
+
 function openSystemChat() {
   activeContact = "system";
   if (unsubMessages) { unsubMessages(); unsubMessages = null; }
+  if (unsubReads) { unsubReads(); unsubReads = null; }
+  if (unsubContactPresence) { unsubContactPresence(); unsubContactPresence = null; }
 
-  document.querySelectorAll(".user-row").forEach(function(r) { r.classList.remove("active"); });
+  document.querySelectorAll(".user-row").forEach(function (r) { r.classList.remove("active"); });
   el("system-chat-row").classList.add("active");
   el("no-chat-placeholder").style.display = "none";
   el("chat-active").style.display = "flex";
+  el("chat-header").onclick = null;
 
   el("chat-avatar").style.background = "linear-gradient(135deg,var(--tg-blue),var(--tg-blue-2))";
   el("chat-avatar").textContent = "T";
@@ -475,7 +789,12 @@ function openSystemChat() {
   const messages = el("messages");
   messages.innerHTML = "";
 
-  WELCOME_MESSAGES.forEach(function(text) {
+  const note = document.createElement("div");
+  note.className = "system-note";
+  note.textContent = "Официальный чат TRUBA";
+  messages.appendChild(note);
+
+  WELCOME_MESSAGES.forEach(function (text) {
     const row = document.createElement("div");
     row.className = "msg-row theirs";
     const bubble = document.createElement("div");
@@ -491,16 +810,22 @@ function openSystemChat() {
   el("send-btn").disabled = true;
 }
 
+/* ============================ REAL CONVERSATION ============================ */
+
 function openConversation(user, rowEl) {
   activeContact = user;
-  document.querySelectorAll(".user-row").forEach(function(r) { r.classList.remove("active"); });
+  cachedMessages = [];
+  contactLastReadMillis = 0;
+
+  document.querySelectorAll(".user-row").forEach(function (r) { r.classList.remove("active"); });
   el("system-chat-row").classList.remove("active");
   if (rowEl) rowEl.classList.add("active");
 
   el("no-chat-placeholder").style.display = "none";
   el("chat-active").style.display = "flex";
   el("chat-header-name").textContent = user.username;
-  el("chat-header-sub").textContent = "";
+  el("chat-header-sub").textContent = "TRUBA";
+  el("chat-header").onclick = function () { openContactProfile(user); };
 
   el("chat-avatar").style.background = hashColor(user.username);
   el("chat-avatar").textContent = user.username.charAt(0).toUpperCase();
@@ -508,52 +833,91 @@ function openConversation(user, rowEl) {
   el("draft-input").placeholder = "Написать сообщение...";
   el("send-btn").disabled = false;
 
+  const cId = convId(currentUid, user.uid);
+
   if (unsubMessages) unsubMessages();
+  if (unsubReads) unsubReads();
+  if (unsubContactPresence) unsubContactPresence();
+
+  // presence of the contact, shown in chat header
+  unsubContactPresence = onSnapshot(doc(db, "presence", user.uid), function (snap) {
+    el("chat-header-sub").textContent = lastSeenText(snap.exists() ? snap.data() : null);
+  }, function () {});
+
+  // contact's read pointer -> used to show read ticks on my messages
+  unsubReads = onSnapshot(doc(db, "reads", cId + "_" + user.uid), function (snap) {
+    contactLastReadMillis = snap.exists() ? tsMillis(snap.data().lastRead) : 0;
+    renderMessages();
+  }, function () {});
 
   const q = query(
     collection(db, "messages"),
-    where("convId", "==", convId(currentUid, user.uid)),
+    where("convId", "==", cId),
     orderBy("ts", "asc")
   );
 
-  unsubMessages = onSnapshot(q, function(snapshot) {
-    const messages = el("messages");
-    messages.innerHTML = "";
-
-    if (snapshot.empty) {
-      const empty = document.createElement("div");
-      empty.className = "placeholder-center";
-      empty.textContent = "Пока нет сообщений. Напишите первым.";
-      messages.appendChild(empty);
-      return;
-    }
-
-    snapshot.forEach(function(item) {
-      const m = item.data();
-      const row = document.createElement("div");
-      row.className = "msg-row " + (m.from === currentUid ? "mine" : "theirs");
-
-      const bubble = document.createElement("div");
-      bubble.className = "bubble";
-      bubble.innerHTML = escapeHtml(m.text);
-
-      const time = document.createElement("div");
-      time.className = "msg-time";
-      time.textContent = timeStr(m.ts);
-
-      row.appendChild(bubble);
-      row.appendChild(time);
-      messages.appendChild(row);
-    });
-
-    messages.scrollTop = messages.scrollHeight;
-  }, function(err) {
+  unsubMessages = onSnapshot(q, function (snapshot) {
+    cachedMessages = [];
+    snapshot.forEach(function (item) { cachedMessages.push(item.data()); });
+    renderMessages();
+    markRead(cId);
+  }, function (err) {
     console.error("[TRUBA] Messages:", err);
   });
 }
 
+function markRead(cId) {
+  if (!currentUid) return;
+  setDoc(doc(db, "reads", cId + "_" + currentUid), {
+    lastRead: serverTimestamp()
+  }, { merge: true }).catch(function (err) { console.error("[TRUBA] markRead:", err); });
+}
+
+function renderMessages() {
+  const box = el("messages");
+  box.innerHTML = "";
+
+  if (!cachedMessages.length) {
+    const empty = document.createElement("div");
+    empty.className = "placeholder-center";
+    empty.textContent = "Пока нет сообщений. Напишите первым.";
+    box.appendChild(empty);
+    return;
+  }
+
+  cachedMessages.forEach(function (m) {
+    const mine = m.from === currentUid;
+    const row = document.createElement("div");
+    row.className = "msg-row " + (mine ? "mine" : "theirs");
+
+    const bubble = document.createElement("div");
+    bubble.className = "bubble";
+    bubble.innerHTML = escapeHtml(m.text);
+
+    const meta = document.createElement("div");
+    meta.className = "msg-meta";
+    meta.textContent = timeStr(m.ts);
+
+    if (mine) {
+      const read = tsMillis(m.ts) <= contactLastReadMillis && contactLastReadMillis > 0;
+      const tick = document.createElement("span");
+      tick.className = "ticks " + (read ? "read" : "sent");
+      tick.textContent = read ? "✓✓" : "✓";
+      meta.appendChild(tick);
+    }
+
+    row.appendChild(bubble);
+    row.appendChild(meta);
+    box.appendChild(row);
+  });
+
+  box.scrollTop = box.scrollHeight;
+}
+
+/* ============================ SEND MESSAGE (with delay) ============================ */
+
 el("send-btn").addEventListener("click", sendMessage);
-el("draft-input").addEventListener("keydown", function(e) {
+el("draft-input").addEventListener("keydown", function (e) {
   if (e.key === "Enter" && !e.shiftKey) {
     e.preventDefault();
     sendMessage();
@@ -565,6 +929,15 @@ async function sendMessage() {
   const text = input.value.trim();
   if (!text || !activeContact || activeContact === "system") return;
 
+  const sendBtn = el("send-btn");
+  input.value = "";
+  input.disabled = true;
+  sendBtn.disabled = true;
+  sendBtn.classList.add("sending");
+
+  const delay = 500 + Math.random() * 700;
+  await new Promise(function (resolve) { setTimeout(resolve, delay); });
+
   try {
     await addDoc(collection(db, "messages"), {
       convId: convId(currentUid, activeContact.uid),
@@ -573,13 +946,64 @@ async function sendMessage() {
       text: text,
       ts: serverTimestamp()
     });
-    input.value = "";
   } catch (err) {
     console.error("[TRUBA] Send:", err);
   }
+
+  input.disabled = false;
+  sendBtn.disabled = false;
+  sendBtn.classList.remove("sending");
+  input.focus();
 }
 
-console.log("[TRUBA] Firebase and buttons are ready");
+/* ============================ PROFILE MODALS ============================ */
+
+el("me-profile-btn").addEventListener("click", openOwnProfile);
+el("profile-close").addEventListener("click", function () { el("profile-modal").style.display = "none"; });
+el("profile-modal").addEventListener("click", function (e) { if (e.target.id === "profile-modal") el("profile-modal").style.display = "none"; });
+
+function openOwnProfile() {
+  el("profile-avatar").style.background = hashColor(currentUsername);
+  el("profile-avatar").textContent = currentUsername.charAt(0).toUpperCase();
+  el("profile-username").textContent = "@" + currentUsername;
+  el("profile-bio-input").value = currentBio || "";
+  el("profile-save-hint").textContent = "";
+  el("profile-modal").style.display = "flex";
+}
+
+el("profile-save-btn").addEventListener("click", async function () {
+  const bio = el("profile-bio-input").value.trim();
+  const btn = el("profile-save-btn");
+  btn.disabled = true;
+  try {
+    await setDoc(doc(db, "users", currentUid), { bio: bio }, { merge: true });
+    currentBio = bio;
+    el("profile-save-hint").textContent = "Сохранено ✓";
+  } catch (err) {
+    console.error("[TRUBA] Save bio:", err);
+    el("profile-save-hint").textContent = "Не удалось сохранить";
+  }
+  btn.disabled = false;
+});
+
+el("contact-close").addEventListener("click", function () { el("contact-modal").style.display = "none"; });
+el("contact-modal").addEventListener("click", function (e) { if (e.target.id === "contact-modal") el("contact-modal").style.display = "none"; });
+
+async function openContactProfile(user) {
+  el("contact-modal-avatar").style.background = hashColor(user.username);
+  el("contact-modal-avatar").textContent = user.username.charAt(0).toUpperCase();
+  el("contact-modal-username").textContent = "@" + user.username;
+  el("contact-modal-bio").textContent = "Загрузка...";
+  el("contact-modal").style.display = "flex";
+  try {
+    const snap = await getDoc(doc(db, "users", user.uid));
+    el("contact-modal-bio").textContent = (snap.exists() && snap.data().bio) ? snap.data().bio : "Пользователь пока ничего о себе не написал";
+  } catch (err) {
+    el("contact-modal-bio").textContent = "Не удалось загрузить";
+  }
+}
+
+console.log("[TRUBA] Готово, ждём действий пользователя");
 </script>
 </body>
 </html>
