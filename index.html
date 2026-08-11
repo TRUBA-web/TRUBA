@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+!DOCTYPE html>
 <html lang="ru">
 <head>
 <meta charset="UTF-8" />
@@ -76,7 +76,29 @@
 
   /* ---------- App screen ---------- */
   #app-screen { display: none; width: 100%; height: 100vh; }
+  @supports (height: 100dvh) {
+    #app-screen { height: 100dvh; }
+  }
   .app-shell { display: flex; width: 100%; height: 100%; }
+
+  /* ---------- Mobile: single pane at a time, like Telegram's mobile app ---------- */
+  @media (max-width: 768px) {
+    .app-shell { position: relative; overflow: hidden; }
+    .sidebar {
+      position: absolute; inset: 0; width: 100%; z-index: 2;
+      transition: transform 0.22s ease;
+    }
+    .chat-panel {
+      position: absolute; inset: 0; width: 100%;
+      transform: translateX(100%);
+      transition: transform 0.22s ease;
+    }
+    .app-shell.chat-open .sidebar { transform: translateX(-100%); }
+    .app-shell.chat-open .chat-panel { transform: translateX(0); }
+    .back-btn { display: flex !important; }
+    .messages { padding: 14px 14px; }
+    .composer { padding: 10px 12px; }
+  }
 
   .sidebar { width: 320px; background: var(--sidebar-bg); border-right: 1px solid var(--border);
     display: flex; flex-direction: column; flex-shrink: 0; position: relative; }
@@ -108,6 +130,12 @@
   .search-row { display: flex; align-items: center; gap: 8px; margin: 10px 16px 4px; background: #F5F5F5;
     border-radius: 20px; padding: 8px 14px; color: var(--muted); }
   .search-row input { flex: 1; border: none; background: transparent; outline: none; font-size: 14px; color: var(--text); }
+
+  #search-results { margin: 4px 8px 0; border-radius: 10px; overflow: hidden; }
+  #search-results .user-row { border-radius: 10px; }
+  .search-empty { padding: 10px 16px; font-size: 13.5px; color: var(--muted); }
+
+  .back-btn { display: none; margin-right: 2px; }
 
   .list-label { padding: 14px 16px 6px; font-size: 12.5px; color: var(--muted); font-weight: 600; }
   .user-list { overflow-y: auto; flex: 1; }
@@ -210,8 +238,9 @@
 
   <!-- CODE VIEW -->
   <div id="view-code" style="display:none;">
-    <div class="code-desc">Мы отправили 6-значный код на <b id="code-target-email"></b>. Введите его ниже, чтобы завершить регистрацию.</div>
-    <input class="field" id="code-input" placeholder="Код из письма" inputmode="numeric" maxlength="6" />
+    <div class="code-desc">Введите код, чтобы завершить регистрацию.</div>
+    <div class="code-desc" id="code-hint" style="background:#FFF7E0; border-radius:10px; padding:10px; color:#8a6d00;"></div>
+    <input class="field" id="code-input" placeholder="Код" inputmode="numeric" maxlength="6" />
     <div class="error-text" id="code-error"></div>
     <button class="primary-btn" id="code-btn">Подтвердить и войти</button>
     <span class="back-link" id="code-back">Изменить данные</span>
@@ -220,7 +249,7 @@
 
 <!-- ================= APP SCREEN ================= -->
 <div id="app-screen">
-  <div class="app-shell">
+  <div class="app-shell" id="app-shell">
     <div class="sidebar">
       <div class="sidebar-header">
         <button class="icon-btn" id="hamburger-btn" title="Меню">
@@ -258,11 +287,12 @@
 
       <div class="search-row">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="m21 21-4.3-4.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-        <input id="chat-search" placeholder="Поиск" autocomplete="off" />
+        <input id="chat-search" placeholder="Поиск по @username" autocomplete="off" />
       </div>
+      <div id="search-results" style="display:none;"></div>
 
       <div class="user-list" id="user-list-scroll">
-        <div class="list-label">ЧАТЫ</div>
+        <div class="list-label" id="chats-label">ЧАТЫ</div>
         <div id="system-chat-row" class="user-row" style="display:flex;">
           <div class="avatar" style="width:44px;height:44px;font-size:18px;background:linear-gradient(135deg,var(--tg-blue),var(--tg-blue-2));">T</div>
           <div>
@@ -280,6 +310,9 @@
       </div>
       <div id="chat-active" style="display:none; height:100%; flex-direction:column;">
         <div class="chat-header" id="chat-header">
+          <button class="icon-btn back-btn" id="chat-back-btn">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="m15 18-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
           <div class="avatar" id="chat-avatar" style="width:36px;height:36px;font-size:14px;"></div>
           <div>
             <div class="chat-header-name" id="chat-header-name"></div>
@@ -331,9 +364,9 @@
 </div>
 
 <!-- ================= EMAILJS ================= -->
-<script type="module" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
-
-<!-- ================= FIREBASE + APP LOGIC ================= -->
+<script type="module" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.m
+  
+  <!-- ================= FIREBASE + APP LOGIC ================= -->
 <script type="module">
 console.log("[TRUBA] JavaScript started");
 
@@ -344,7 +377,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {
   getFirestore, doc, setDoc, getDoc, collection, query, where,
-  onSnapshot, addDoc, serverTimestamp, orderBy, arrayUnion
+  onSnapshot, addDoc, serverTimestamp, orderBy, arrayUnion, limit, getDocs
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 // ======================================================================
@@ -398,6 +431,19 @@ const WELCOME_MESSAGES = [
 ];
 
 function el(id) { return document.getElementById(id); }
+
+/* ---------- Mobile single-pane navigation ---------- */
+function isMobileView() { return window.innerWidth <= 768; }
+function enterMobileChat() {
+  if (isMobileView()) el("app-shell").classList.add("chat-open");
+}
+function exitMobileChat() {
+  el("app-shell").classList.remove("chat-open");
+}
+el("chat-back-btn").addEventListener("click", function (e) {
+  e.stopPropagation();
+  exitMobileChat();
+});
 
 function hashColor(str) {
   let h = 0;
@@ -474,11 +520,11 @@ function showRegisterView() {
   el("view-code").style.display = "none";
   el("reg-error").textContent = "";
 }
-function showCodeView(email) {
+function showCodeView(email, code) {
   el("view-login").style.display = "none";
   el("view-register").style.display = "none";
   el("view-code").style.display = "block";
-  el("code-target-email").textContent = email;
+  el("code-hint").textContent = "Отправка на почту временно отключена. Ваш код: " + code;
   el("code-error").textContent = "";
   el("code-input").value = "";
 }
@@ -607,20 +653,14 @@ async function handleRegisterStart() {
       code: code
     };
 
-    if (window.emailjs && EMAILJS_SERVICE_ID !== "YOUR_EMAILJS_SERVICE_ID") {
-      await window.emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
-        to_email: rawEmail,
-        to_name: username,
-        code: code,
-        app_name: "TRUBA"
-      });
-      console.log("[TRUBA] Письмо с кодом отправлено на", rawEmail);
-    } else {
-      console.warn("[TRUBA] EmailJS не настроен — код (для теста):", code);
-      el("reg-error").textContent = "EmailJS не настроен разработчиком — код в консоли браузера (F12): " + code;
-    }
+    // ---------------------------------------------------------------
+    // EmailJS ВРЕМЕННО ОТКЛЮЧЁН — код просто показывается на экране,
+    // письмо на почту не отправляется. Чтобы снова включить отправку,
+    // верни блок с window.emailjs.send(...) обратно.
+    // ---------------------------------------------------------------
+    console.log("[TRUBA] Код (отправка на почту отключена):", code);
 
-    showCodeView(rawEmail);
+    showCodeView(rawEmail, code);
   } catch (err) {
     el("reg-error").textContent = authError(err);
   } finally {
@@ -628,7 +668,7 @@ async function handleRegisterStart() {
     btn.textContent = "Получить код";
   }
 }
-
+  
 /* ============================ REGISTER: STEP 2 (confirm code) ============================ */
 
 el("code-btn").addEventListener("click", handleConfirmCode);
@@ -709,18 +749,92 @@ el("menu-logout").addEventListener("click", async function () {
   signOut(auth).catch(function (err) { console.error("[TRUBA] Logout:", err); });
 });
 
-/* ============================ CHAT SEARCH ============================ */
+/* ============================ USER SEARCH ============================ */
+
+let searchDebounce = null;
 
 el("chat-search").addEventListener("input", function () {
-  const term = el("chat-search").value.trim().toLowerCase();
-  const systemRow = el("system-chat-row");
-  systemRow.style.display = ("truba".indexOf(term) !== -1 || !term) ? "flex" : "none";
-  document.querySelectorAll("#user-list .user-row").forEach(function (row) {
-    const name = row.querySelector(".user-row-name");
-    const match = !term || (name && name.textContent.toLowerCase().indexOf(term) !== -1);
-    row.style.display = match ? "flex" : "none";
-  });
+  const raw = el("chat-search").value.trim();
+  clearTimeout(searchDebounce);
+
+  if (!raw) {
+    el("search-results").style.display = "none";
+    el("search-results").innerHTML = "";
+    el("user-list-scroll").style.display = "block";
+    return;
+  }
+
+  el("user-list-scroll").style.display = "none";
+  el("search-results").style.display = "block";
+  el("search-results").innerHTML = '<div class="search-empty">Ищем...</div>';
+
+  searchDebounce = setTimeout(function () { runUserSearch(raw); }, 300);
 });
+
+async function runUserSearch(raw) {
+  const term = raw.toLowerCase().replace(/^@/, "");
+  const resultsBox = el("search-results");
+  if (!term) { resultsBox.innerHTML = ""; return; }
+
+  try {
+    const q = query(
+      collection(db, "users"),
+      orderBy("usernameLower"),
+      where("usernameLower", ">=", term),
+      where("usernameLower", "<", term + "\uf8ff"),
+      limit(15)
+    );
+    const snap = await getDocs(q);
+    resultsBox.innerHTML = "";
+
+    let found = 0;
+    snap.forEach(function (item) {
+      if (item.id === currentUid) return;
+      found++;
+      const data = item.data();
+      const user = { uid: item.id, username: data.username };
+
+      const row = document.createElement("div");
+      row.className = "user-row";
+
+      const avatar = document.createElement("div");
+      avatar.className = "avatar";
+      avatar.style.width = "44px";
+      avatar.style.height = "44px";
+      avatar.style.fontSize = "16px";
+      avatar.style.background = hashColor(user.username);
+      avatar.textContent = user.username.charAt(0).toUpperCase();
+
+      const info = document.createElement("div");
+      const name = document.createElement("div");
+      name.className = "user-row-name";
+      name.textContent = user.username;
+      const sub = document.createElement("div");
+      sub.className = "user-row-sub";
+      sub.textContent = "@" + user.username;
+
+      info.appendChild(name);
+      info.appendChild(sub);
+      row.appendChild(avatar);
+      row.appendChild(info);
+      row.addEventListener("click", function () {
+        el("chat-search").value = "";
+        el("search-results").style.display = "none";
+        el("search-results").innerHTML = "";
+        el("user-list-scroll").style.display = "block";
+        openConversation(user, null);
+      });
+      resultsBox.appendChild(row);
+    });
+
+    if (!found) {
+      resultsBox.innerHTML = '<div class="search-empty">Никого не найдено</div>';
+    }
+  } catch (err) {
+    console.error("[TRUBA] Search:", err);
+    resultsBox.innerHTML = '<div class="search-empty">Ошибка поиска</div>';
+  }
+}
 
 /* ============================ AUTH STATE ============================ */
 
@@ -790,32 +904,33 @@ function showApp() {
   el("me-avatar").style.background = hashColor(currentUsername);
   el("me-avatar").textContent = currentUsername.charAt(0).toUpperCase();
   el("system-chat-row").onclick = openSystemChat;
-  listenUsers();
+  listenChats();
 }
 
-/* ============================ USER LIST ============================ */
+/* ============================ CHAT LIST (only real conversations) ============================ */
 
-function listenUsers() {
+function listenChats() {
   if (unsubUsers) unsubUsers();
 
-  unsubUsers = onSnapshot(query(collection(db, "users")), function (snapshot) {
+  const chatsRef = collection(db, "users", currentUid, "chats");
+  const q = query(chatsRef, orderBy("updatedAt", "desc"));
+
+  unsubUsers = onSnapshot(q, function (snapshot) {
     const list = el("user-list");
     list.innerHTML = "";
 
-    const users = [];
-    snapshot.forEach(function (item) {
-      if (item.id !== currentUid) users.push({ uid: item.id, username: item.data().username, bio: item.data().bio || "" });
-    });
-
-    if (!users.length) {
+    if (snapshot.empty) {
       const empty = document.createElement("div");
       empty.className = "empty-note";
-      empty.textContent = "Пока никто больше не зарегистрирован. Позовите друга.";
+      empty.textContent = "У вас пока нет переписок. Найдите друга через поиск @username сверху.";
       list.appendChild(empty);
       return;
     }
 
-    users.forEach(function (user) {
+    snapshot.forEach(function (item) {
+      const data = item.data();
+      const user = { uid: data.contactUid, username: data.contactUsername };
+
       const row = document.createElement("div");
       row.className = "user-row";
 
@@ -843,7 +958,7 @@ function listenUsers() {
       list.appendChild(row);
     });
   }, function (err) {
-    console.error("[TRUBA] Users:", err);
+    console.error("[TRUBA] Chats:", err);
   });
 }
 
@@ -860,6 +975,7 @@ function openSystemChat() {
   el("no-chat-placeholder").style.display = "none";
   el("chat-active").style.display = "flex";
   el("chat-header").onclick = null;
+  enterMobileChat();
 
   el("chat-avatar").style.background = "linear-gradient(135deg,var(--tg-blue),var(--tg-blue-2))";
   el("chat-avatar").textContent = "T";
@@ -906,6 +1022,7 @@ function openConversation(user, rowEl) {
   el("chat-header-name").textContent = user.username;
   el("chat-header-sub").textContent = "TRUBA";
   el("chat-header").onclick = function () { openContactProfile(user); };
+  enterMobileChat();
 
   el("chat-avatar").style.background = hashColor(user.username);
   el("chat-avatar").textContent = user.username.charAt(0).toUpperCase();
@@ -1029,6 +1146,20 @@ async function sendMessage() {
       text: text,
       ts: serverTimestamp()
     });
+
+    // add/update the chat-list entry on both sides so the conversation
+    // shows up in the sidebar (this is what makes a chat "real")
+    await setDoc(doc(db, "users", currentUid, "chats", activeContact.uid), {
+      contactUid: activeContact.uid,
+      contactUsername: activeContact.username,
+      updatedAt: serverTimestamp()
+    }, { merge: true });
+
+    await setDoc(doc(db, "users", activeContact.uid, "chats", currentUid), {
+      contactUid: currentUid,
+      contactUsername: currentUsername,
+      updatedAt: serverTimestamp()
+    }, { merge: true });
   } catch (err) {
     console.error("[TRUBA] Send:", err);
   }
