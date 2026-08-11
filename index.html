@@ -210,395 +210,376 @@
 
 <!-- ================= FIREBASE ================= -->
 <script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import {
-    getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword,
-    onAuthStateChanged, signOut
-  } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-  import {
-    getFirestore, doc, setDoc, getDoc, collection, query, where,
-    onSnapshot, addDoc, serverTimestamp, orderBy
-  } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+console.log("[TRUBA] JavaScript started");
 
-  // ======================================================================
-  // ВСТАВЬ СЮДА СВОЙ FIREBASE CONFIG (тот же, что был в предыдущем файле)
-  // ======================================================================
-  const firebaseConfig = {
-    apiKey: "AIzaSyDJdfwM0tOJEOUsdN-VDtW7oWatJOi5obo",
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import {
+  getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword,
+  onAuthStateChanged, signOut
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import {
+  getFirestore, doc, setDoc, getDoc, collection, query, where,
+  onSnapshot, addDoc, serverTimestamp, orderBy
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDJdfwM0tOJEOUsdN-VDtW7oWatJOi5obo",
   authDomain: "truba-9fc31.firebaseapp.com",
   projectId: "truba-9fc31",
   storageBucket: "truba-9fc31.firebasestorage.app",
   messagingSenderId: "723117237157",
   appId: "1:723117237157:web:a36f926b71a00a0be17e4c"
-  };
-  // ======================================================================
+};
 
-  const EMAIL_DOMAIN = "truba.local";
+const EMAIL_DOMAIN = "truba.local";
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
 
-  let app, auth, db;
+let mode = "login";
+let currentUid = null;
+let currentUsername = null;
+let activeContact = null;
+let unsubMessages = null;
+let unsubUsers = null;
+
+const WELCOME_MESSAGES = [
+  "Добро пожаловать в TRUBA! 👋",
+  "Это ваш собственный мессенджер — простой, быстрый и без лишнего.",
+  "Зарегистрируйте друга под другим именем, и он появится в списке слева.",
+  "Спасибо, что пользуетесь TRUBA!",
+  "— команда разработчиков"
+];
+
+function el(id) { return document.getElementById(id); }
+
+function hashColor(str) {
+  let h = 0;
+  for (let i = 0; i < str.length; i++) h = str.charCodeAt(i) + ((h << 5) - h);
+  return "hsl(" + (Math.abs(h) % 360) + ", 60%, 50%)";
+}
+
+function convId(a, b) { return [a, b].sort().join("__"); }
+
+function timeStr(ts) {
+  if (!ts) return "";
+  const d = ts.toDate ? ts.toDate() : new Date(ts);
+  return d.toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"});
+}
+
+function escapeHtml(str) {
+  const d = document.createElement("div");
+  d.textContent = String(str);
+  return d.innerHTML;
+}
+
+function showError(text) {
+  el("auth-error").textContent = text || "";
+}
+
+function authError(err) {
+  console.error("[TRUBA] Firebase error:", err);
+  const code = err && err.code;
+  if (code === "custom/username-taken") return "Такое имя пользователя уже занято";
+  if (code === "auth/email-already-in-use") return "Такой пользователь уже существует";
+  if (code === "auth/invalid-credential" || code === "auth/wrong-password" || code === "auth/user-not-found") return "Неверное имя пользователя или пароль";
+  if (code === "auth/weak-password") return "Пароль должен содержать минимум 6 символов";
+  if (code === "auth/operation-not-allowed") return "В Firebase не включён Email/Password";
+  if (code === "auth/network-request-failed") return "Ошибка сети";
+  if (code === "auth/too-many-requests") return "Слишком много попыток. Попробуйте позже";
+  if (code === "permission-denied") return "Firestore запретил доступ. Проверьте Rules";
+  return "Ошибка: " + (code || (err && err.message) || "неизвестная");
+}
+
+el("switch-link").addEventListener("click", function() {
+  mode = mode === "login" ? "register" : "login";
+  el("auth-subtitle").textContent = mode === "login" ? "Войдите, чтобы продолжить переписку" : "Создайте аккаунт за 10 секунд";
+  el("auth-submit-btn").textContent = mode === "login" ? "Войти" : "Зарегистрироваться";
+  el("switch-prompt").textContent = mode === "login" ? "Нет аккаунта? " : "Уже есть аккаунт? ";
+  el("switch-link").textContent = mode === "login" ? "Зарегистрироваться" : "Войти";
+  showError("");
+});
+
+el("auth-submit-btn").addEventListener("click", handleAuthSubmit);
+el("password-input").addEventListener("keydown", function(e) {
+  if (e.key === "Enter") handleAuthSubmit();
+});
+
+async function handleAuthSubmit() {
+  console.log("[TRUBA] Кнопка нажата:", mode);
+  const username = el("username-input").value.trim();
+  const password = el("password-input").value;
+  showError("");
+
+  if (!username || !password) {
+    showError("Заполните имя пользователя и пароль");
+    return;
+  }
+
+  if (!/^[a-zA-Z0-9_]{2,20}$/.test(username)) {
+    showError("Имя: только буквы, цифры и _, 2-20 символов");
+    return;
+  }
+
+  if (password.length < 6) {
+    showError("Пароль должен содержать минимум 6 символов");
+    return;
+  }
+
+  const btn = el("auth-submit-btn");
+  btn.disabled = true;
+  btn.textContent = "Подождите...";
+
+  const email = username.toLowerCase() + "@" + EMAIL_DOMAIN;
 
   try {
-    console.log("[TRUBA] Инициализация Firebase...");
-    app = initializeApp(firebaseConfig);
-    auth = getAuth(app);
-    db = getFirestore(app);
-    console.log("[TRUBA] Firebase успешно подключен");
-  } catch (err) {
-    console.error("[TRUBA] Ошибка инициализации Firebase:", err);
-    const errorEl = document.getElementById("auth-error");
-    if (errorEl) errorEl.textContent = "Не удалось подключить Firebase. Откройте F12 → Console.";
-    throw err;
-  }
+    if (mode === "register") {
+      const lower = username.toLowerCase();
+      const taken = await getDoc(doc(db, "usernames", lower));
+      if (taken.exists()) throw {code:"custom/username-taken"};
 
-  // ---------- welcome system chat (client-side only, not stored) ----------
-  const SYSTEM_CHAT_ID = "__truba_system__";
-  const WELCOME_MESSAGES = [
-    "Добро пожаловать в TRUBA! 👋",
-    "Это ваш собственный мессенджер — простой, быстрый и без лишнего.",
-    "Зарегистрируйте друга под другим именем, и он появится в списке слева — там и начнётся настоящая переписка.",
-    "Спасибо, что пользуетесь TRUBA!\n— команда разработчиков"
-  ];
+      const cred = await createUserWithEmailAndPassword(auth, email, password);
 
-  // ---------- state ----------
-  let mode = "login";
-  let currentUid = null;
-  let currentUsername = null;
-  let activeContact = null; // { uid, username } or 'system'
-  let unsubMessages = null;
-  let unsubUsers = null;
+      await setDoc(doc(db, "users", cred.user.uid), {
+        username: username,
+        usernameLower: lower,
+        createdAt: serverTimestamp()
+      });
 
-  function hashColor(str) {
-    let h = 0;
-    for (let i = 0; i < str.length; i++) h = str.charCodeAt(i) + ((h << 5) - h);
-    const hue = Math.abs(h) % 360;
-    return `hsl(${hue}, 60%, 50%)`;
-  }
-  function convId(a, b) { return [a, b].sort().join("__"); }
-  function timeStr(ts) {
-    if (!ts) return "";
-    const d = ts.toDate ? ts.toDate() : new Date(ts);
-    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  }
-  function el(id) { return document.getElementById(id); }
-  function escapeHtml(str) {
-    const d = document.createElement("div");
-    d.textContent = str;
-    return d.innerHTML;
-  }
-
-  // ---------- AUTH UI ----------
-  el("switch-link").addEventListener("click", () => {
-    mode = mode === "login" ? "register" : "login";
-    el("auth-subtitle").textContent = mode === "login"
-      ? "Войдите, чтобы продолжить переписку"
-      : "Создайте аккаунт за 10 секунд";
-    el("auth-submit-btn").textContent = mode === "login" ? "Войти" : "Зарегистрироваться";
-    el("switch-prompt").textContent = mode === "login" ? "Нет аккаунта? " : "Уже есть аккаунт? ";
-    el("switch-link").textContent = mode === "login" ? "Зарегистрироваться" : "Войти";
-    el("auth-error").textContent = "";
-  });
-
-  el("auth-submit-btn").addEventListener("click", handleAuthSubmit);
-  el("password-input").addEventListener("keydown", (e) => { if (e.key === "Enter") handleAuthSubmit(); });
-
-  async function handleAuthSubmit() {
-    console.log("[TRUBA] Нажата кнопка:", mode === "login" ? "Войти" : "Зарегистрироваться");
-
-    const username = el("username-input").value.trim();
-    const password = el("password-input").value;
-    const errorEl = el("auth-error");
-    const btn = el("auth-submit-btn");
-
-    errorEl.textContent = "";
-
-    if (!username || !password) {
-      errorEl.textContent = "Заполните имя пользователя и пароль";
-      return;
-    }
-
-    if (!/^[a-zA-Z0-9_]{2,20}$/.test(username)) {
-      errorEl.textContent = "Имя: только буквы/цифры/подчёркивание, 2-20 символов";
-      return;
-    }
-
-    if (password.length < 6) {
-      errorEl.textContent = "Пароль должен содержать минимум 6 символов";
-      return;
-    }
-
-    if (!auth || !db) {
-      errorEl.textContent = "Firebase ещё не инициализирован";
-      console.error("[TRUBA] auth/db недоступны");
-      return;
-    }
-
-    btn.disabled = true;
-    btn.textContent = "Подождите...";
-
-    const fakeEmail = `${username.toLowerCase()}@${EMAIL_DOMAIN}`;
-    console.log("[TRUBA] Авторизация:", fakeEmail);
-
-    try {
-      if (mode === "register") {
-        const usernameLower = username.toLowerCase();
-
-        console.log("[TRUBA] Проверяем имя пользователя...");
-        const takenSnap = await getDoc(doc(db, "usernames", usernameLower));
-
-        if (takenSnap.exists()) {
-          throw { code: "custom/username-taken" };
-        }
-
-        console.log("[TRUBA] Создаём Firebase аккаунт...");
-        const cred = await createUserWithEmailAndPassword(auth, fakeEmail, password);
-
-        console.log("[TRUBA] Сохраняем профиль...");
-        await setDoc(doc(db, "users", cred.user.uid), {
-          username,
-          usernameLower,
-          createdAt: serverTimestamp()
-        });
-
-        await setDoc(doc(db, "usernames", usernameLower), {
-          uid: cred.user.uid
-        });
-
-        console.log("[TRUBA] Регистрация успешно завершена:", cred.user.uid);
-      } else {
-        console.log("[TRUBA] Выполняем вход...");
-        const cred = await signInWithEmailAndPassword(auth, fakeEmail, password);
-        console.log("[TRUBA] Вход успешно выполнен:", cred.user.uid);
-      }
-    } catch (err) {
-      console.error("[TRUBA] Ошибка авторизации:", err);
-      errorEl.textContent = mapAuthError(err);
-      btn.disabled = false;
-      btn.textContent = mode === "login" ? "Войти" : "Зарегистрироваться";
-    }
-  }
-
-  function mapAuthError(err) {
-    console.error("[TRUBA] Firebase error:", err?.code, err?.message);
-
-    switch (err?.code) {
-      case "custom/username-taken":
-        return "Такое имя пользователя уже занято";
-      case "auth/email-already-in-use":
-        return "Такой пользователь уже существует";
-      case "auth/invalid-credential":
-      case "auth/wrong-password":
-      case "auth/user-not-found":
-      case "auth/invalid-login-credentials":
-        return "Неверное имя пользователя или пароль";
-      case "auth/weak-password":
-        return "Пароль слишком короткий (минимум 6 символов)";
-      case "auth/operation-not-allowed":
-        return "В Firebase не включён вход по Email/Password";
-      case "auth/configuration-not-found":
-        return "Firebase не настроен: включите Email/Password";
-      case "auth/too-many-requests":
-        return "Слишком много попыток. Попробуйте позже";
-      case "auth/network-request-failed":
-        return "Ошибка сети. Проверьте интернет-соединение";
-      case "permission-denied":
-      case "firestore/permission-denied":
-        return "Firebase Firestore запретил доступ. Проверьте правила Firestore";
-      default:
-        return "Ошибка: " + (err?.code || err?.message || "неизвестная");
-    }
-  }
-
-  el("logout-btn").addEventListener("click", () => signOut(auth));
-
-  // ---------- AUTH STATE ----------
-  onAuthStateChanged(auth, async (user) => {
-    console.log("[TRUBA] Состояние авторизации:", user ? user.uid : "не авторизован");
-
-    if (user) {
-      try {
-        const snap = await getDoc(doc(db, "users", user.uid));
-        currentUid = user.uid;
-        currentUsername = snap.exists() ? snap.data().username : user.email.split("@")[0];
-        showApp();
-      } catch (err) {
-        console.error("[TRUBA] Не удалось загрузить профиль:", err);
-        currentUid = user.uid;
-        currentUsername = user.email?.split("@")[0] || "Пользователь";
-        showApp();
-      }
+      await setDoc(doc(db, "usernames", lower), {uid: cred.user.uid});
+      console.log("[TRUBA] Регистрация успешна");
     } else {
-      currentUid = null;
-      currentUsername = null;
-      activeContact = null;
-      if (unsubMessages) unsubMessages();
-      if (unsubUsers) unsubUsers();
-      showAuth();
+      await signInWithEmailAndPassword(auth, email, password);
+      console.log("[TRUBA] Вход успешен");
     }
-  });
-
-  function showAuth() {
-    el("auth-screen").style.display = "block";
-    el("app-screen").style.display = "none";
-    el("auth-submit-btn").disabled = false;
-    el("password-input").value = "";
+  } catch (err) {
+    showError(authError(err));
+    btn.disabled = false;
+    btn.textContent = mode === "login" ? "Войти" : "Зарегистрироваться";
   }
+}
 
-  function showApp() {
-    el("auth-screen").style.display = "none";
-    el("app-screen").style.display = "block";
+el("logout-btn").addEventListener("click", function() {
+  signOut(auth).catch(function(err) { console.error("[TRUBA] Logout:", err); });
+});
 
-    el("me-name").textContent = currentUsername;
-    const meAv = el("me-avatar");
-    meAv.style.background = hashColor(currentUsername);
-    meAv.textContent = currentUsername[0].toUpperCase();
+function showAuth() {
+  el("auth-screen").style.display = "block";
+  el("app-screen").style.display = "none";
+  el("auth-submit-btn").disabled = false;
+  el("auth-submit-btn").textContent = mode === "login" ? "Войти" : "Зарегистрироваться";
+}
 
-    el("system-chat-row").onclick = openSystemChat;
+function showApp() {
+  el("auth-screen").style.display = "none";
+  el("app-screen").style.display = "block";
+  el("me-name").textContent = currentUsername;
+  el("me-avatar").style.background = hashColor(currentUsername);
+  el("me-avatar").textContent = currentUsername.charAt(0).toUpperCase();
+  el("system-chat-row").onclick = openSystemChat;
+  listenUsers();
+}
 
-    listenUsers();
-  }
+onAuthStateChanged(auth, async function(user) {
+  console.log("[TRUBA] Auth state:", user ? user.uid : "logged out");
 
-  // ---------- USER LIST ----------
-  function listenUsers() {
-    const q = query(collection(db, "users"));
-    unsubUsers = onSnapshot(q, (snap) => {
-      const listEl = el("user-list");
-      listEl.innerHTML = "";
-      const others = [];
-      snap.forEach((d) => {
-        if (d.id !== currentUid) others.push({ uid: d.id, username: d.data().username });
-      });
-
-      if (others.length === 0) {
-        const empty = document.createElement("div");
-        empty.className = "empty-note";
-        empty.textContent = "Пока никто больше не зарегистрирован. Позовите друга — как только он зарегистрируется, вы увидите друг друга здесь!";
-        listEl.appendChild(empty);
-        return;
-      }
-
-      others.forEach((u) => {
-        const row = document.createElement("div");
-        row.className = "user-row" + (activeContact && activeContact.uid === u.uid ? " active
-    row.innerHTML = `
-          <div class="avatar" style="width:44px;height:44px;font-size:16px;background:${hashColor(u.username)}">${u.username[0].toUpperCase()}</div>
-          <div>
-            <div class="user-row-name">${escapeHtml(u.username)}</div>
-            <div class="user-row-sub">нажмите, чтобы написать</div>
-          </div>
-        `;
-        row.addEventListener("click", () => openConversation(u, row));
-        listEl.appendChild(row);
-      });
-    });
-  }
-
-  // ---------- SYSTEM WELCOME CHAT ----------
-  function openSystemChat() {
-    activeContact = "system";
+  if (!user) {
+    currentUid = null;
+    currentUsername = null;
+    activeContact = null;
     if (unsubMessages) { unsubMessages(); unsubMessages = null; }
-    document.querySelectorAll(".user-row").forEach((r) => r.classList.remove("active"));
-    el("system-chat-row").classList.add("active");
+    if (unsubUsers) { unsubUsers(); unsubUsers = null; }
+    showAuth();
+    return;
+  }
 
-    el("no-chat-placeholder").style.display = "none";
-    const activePanel = el("chat-active");
-    activePanel.style.display = "flex";
+  currentUid = user.uid;
 
-    const av = el("chat-avatar");
-    av.style.background = "linear-gradient(135deg,var(--tg-blue),var(--tg-blue-2))";
-    av.textContent = "T";
-    el("chat-header-name").textContent = "TRUBA";
-    el("chat-header-sub").textContent = "от разработчиков";
+  try {
+    const profile = await getDoc(doc(db, "users", user.uid));
+    currentUsername = profile.exists() ? profile.data().username : (user.email || "user").split("@")[0];
+  } catch (err) {
+    console.error("[TRUBA] Profile:", err);
+    currentUsername = (user.email || "user").split("@")[0];
+  }
 
-    const msgsEl = el("messages");
-    msgsEl.innerHTML = "";
-    const note = document.createElement("div");
-    note.className = "system-note";
-    note.textContent = "Это приветственный чат от команды TRUBA";
-    msgsEl.appendChild(note);
+  showApp();
+});
 
-    WELCOME_MESSAGES.forEach((text) => {
+function listenUsers() {
+  if (unsubUsers) unsubUsers();
+
+  unsubUsers = onSnapshot(query(collection(db, "users")), function(snapshot) {
+    const list = el("user-list");
+    list.innerHTML = "";
+
+    const users = [];
+    snapshot.forEach(function(item) {
+      if (item.id !== currentUid) users.push({uid:item.id, username:item.data().username});
+    });
+
+    if (!users.length) {
+      const empty = document.createElement("div");
+      empty.className = "empty-note";
+      empty.textContent = "Пока никто больше не зарегистрирован. Позовите друга.";
+      list.appendChild(empty);
+      return;
+    }
+
+    users.forEach(function(user) {
       const row = document.createElement("div");
-      row.className = "msg-row theirs";
-      row.innerHTML = `<div class="bubble">${escapeHtml(text).replace(/\n/g, "<br>")}</div>`;
-      msgsEl.appendChild(row);
+      row.className = "user-row";
+
+      const avatar = document.createElement("div");
+      avatar.className = "avatar";
+      avatar.style.width = "44px";
+      avatar.style.height = "44px";
+      avatar.style.fontSize = "16px";
+      avatar.style.background = hashColor(user.username);
+      avatar.textContent = user.username.charAt(0).toUpperCase();
+
+      const info = document.createElement("div");
+      const name = document.createElement("div");
+      name.className = "user-row-name";
+      name.textContent = user.username;
+      const sub = document.createElement("div");
+      sub.className = "user-row-sub";
+      sub.textContent = "нажмите, чтобы написать";
+
+      info.appendChild(name);
+      info.appendChild(sub);
+      row.appendChild(avatar);
+      row.appendChild(info);
+      row.addEventListener("click", function() { openConversation(user, row); });
+      list.appendChild(row);
     });
-    msgsEl.scrollTop = msgsEl.scrollHeight;
+  }, function(err) {
+    console.error("[TRUBA] Users:", err);
+  });
+}
 
-    const draft = el("draft-input");
-    draft.value = "";
-    draft.disabled = true;
-    draft.placeholder = "В этом чате нельзя отвечать";
-    el("send-btn").disabled = true;
-  }
+function openSystemChat() {
+  activeContact = "system";
+  if (unsubMessages) { unsubMessages(); unsubMessages = null; }
 
-  // ---------- REAL CONVERSATION ----------
-  function openConversation(user, rowEl) {
-    activeContact = user;
-    document.querySelectorAll(".user-row").forEach((r) => r.classList.remove("active"));
-    el("system-chat-row").classList.remove("active");
-    if (rowEl) rowEl.classList.add("active");
+  document.querySelectorAll(".user-row").forEach(function(r) { r.classList.remove("active"); });
+  el("system-chat-row").classList.add("active");
+  el("no-chat-placeholder").style.display = "none";
+  el("chat-active").style.display = "flex";
 
-    el("no-chat-placeholder").style.display = "none";
-    el("chat-active").style.display = "flex";
-    el("chat-header-name").textContent = user.username;
-    el("chat-header-sub").textContent = "";
-    const av = el("chat-avatar");
-    av.style.background = hashColor(user.username);
-    av.textContent = user.username[0].toUpperCase();
+  el("chat-avatar").style.background = "linear-gradient(135deg,var(--tg-blue),var(--tg-blue-2))";
+  el("chat-avatar").textContent = "T";
+  el("chat-header-name").textContent = "TRUBA";
+  el("chat-header-sub").textContent = "от разработчиков";
 
-    const draft = el("draft-input");
-    draft.disabled = false;
-    draft.placeholder = "Написать сообщение...";
-    el("send-btn").disabled = false;
+  const messages = el("messages");
+  messages.innerHTML = "";
 
-    if (unsubMessages) unsubMessages();
-    const cId = convId(currentUid, user.uid);
-    const q = query(collection(db, "messages"), where("convId", "==", cId), orderBy("ts", "asc"));
-    unsubMessages = onSnapshot(q, (snap) => {
-      const msgsEl = el("messages");
-      msgsEl.innerHTML = "";
-      if (snap.empty) {
-        const empty = document.createElement("div");
-        empty.className = "placeholder-center";
-        empty.textContent = "Пока нет сообщений. Напишите первым.";
-        msgsEl.appendChild(empty);
-        return;
-      }
-      snap.forEach((d) => {
-        const m = d.data();
-        const mine = m.from === currentUid;
-        const row = document.createElement("div");
-        row.className = "msg-row " + (mine ? "mine" : "theirs");
-        row.innerHTML = `
-          <div class="bubble">${escapeHtml(m.text)}</div>
-          <div class="msg-time">${timeStr(m.ts)}</div>
-        `;
-        msgsEl.appendChild(row);
-      });
-      msgsEl.scrollTop = msgsEl.scrollHeight;
-    });
-  }
-
-  // ---------- SEND MESSAGE ----------
-  el("send-btn").addEventListener("click", sendMessage);
-  el("draft-input").addEventListener("keydown", (e) => {
-    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+  WELCOME_MESSAGES.forEach(function(text) {
+    const row = document.createElement("div");
+    row.className = "msg-row theirs";
+    const bubble = document.createElement("div");
+    bubble.className = "bubble";
+    bubble.innerHTML = escapeHtml(text);
+    row.appendChild(bubble);
+    messages.appendChild(row);
   });
 
-  async function sendMessage() {
-    const input = el("draft-input");
-    const text = input.value.trim();
-    if (!text || !activeContact || activeContact === "system") return;
-    input.value = "";
+  el("draft-input").value = "";
+  el("draft-input").disabled = true;
+  el("draft-input").placeholder = "В этом чате нельзя отвечать";
+  el("send-btn").disabled = true;
+}
+
+function openConversation(user, rowEl) {
+  activeContact = user;
+  document.querySelectorAll(".user-row").forEach(function(r) { r.classList.remove("active"); });
+  el("system-chat-row").classList.remove("active");
+  if (rowEl) rowEl.classList.add("active");
+
+  el("no-chat-placeholder").style.display = "none";
+  el("chat-active").style.display = "flex";
+  el("chat-header-name").textContent = user.username;
+  el("chat-header-sub").textContent = "";
+
+  el("chat-avatar").style.background = hashColor(user.username);
+  el("chat-avatar").textContent = user.username.charAt(0).toUpperCase();
+  el("draft-input").disabled = false;
+  el("draft-input").placeholder = "Написать сообщение...";
+  el("send-btn").disabled = false;
+
+  if (unsubMessages) unsubMessages();
+
+  const q = query(
+    collection(db, "messages"),
+    where("convId", "==", convId(currentUid, user.uid)),
+    orderBy("ts", "asc")
+  );
+
+  unsubMessages = onSnapshot(q, function(snapshot) {
+    const messages = el("messages");
+    messages.innerHTML = "";
+
+    if (snapshot.empty) {
+      const empty = document.createElement("div");
+      empty.className = "placeholder-center";
+      empty.textContent = "Пока нет сообщений. Напишите первым.";
+      messages.appendChild(empty);
+      return;
+    }
+
+    snapshot.forEach(function(item) {
+      const m = item.data();
+      const row = document.createElement("div");
+      row.className = "msg-row " + (m.from === currentUid ? "mine" : "theirs");
+
+      const bubble = document.createElement("div");
+      bubble.className = "bubble";
+      bubble.innerHTML = escapeHtml(m.text);
+
+      const time = document.createElement("div");
+      time.className = "msg-time";
+      time.textContent = timeStr(m.ts);
+
+      row.appendChild(bubble);
+      row.appendChild(time);
+      messages.appendChild(row);
+    });
+
+    messages.scrollTop = messages.scrollHeight;
+  }, function(err) {
+    console.error("[TRUBA] Messages:", err);
+  });
+}
+
+el("send-btn").addEventListener("click", sendMessage);
+el("draft-input").addEventListener("keydown", function(e) {
+  if (e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault();
+    sendMessage();
+  }
+});
+
+async function sendMessage() {
+  const input = el("draft-input");
+  const text = input.value.trim();
+  if (!text || !activeContact || activeContact === "system") return;
+
+  try {
     await addDoc(collection(db, "messages"), {
       convId: convId(currentUid, activeContact.uid),
       from: currentUid,
       to: activeContact.uid,
-      text,
+      text: text,
       ts: serverTimestamp()
     });
+    input.value = "";
+  } catch (err) {
+    console.error("[TRUBA] Send:", err);
   }
-  console.log("[TRUBA] JavaScript загружен. Кнопки авторизации готовы.");
+}
+
+console.log("[TRUBA] Firebase and buttons are ready");
 </script>
 </body>
 </html>
