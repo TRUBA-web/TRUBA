@@ -243,8 +243,8 @@
   const SYSTEM_CHAT_ID = "__truba_system__";
   const WELCOME_MESSAGES = [
     "Добро пожаловать в TRUBA! 👋",
-    "Это ваш собственный мессенджер — простой, быстрый и без лишнего.",
-    "Зарегистрируйте друга под другим именем, и он появится в списке слева — там и начнётся настоящая переписка.",
+    "TRUBA — простой, быстрый и без лишнего.",
+    "Зарегистрируйте друга и вы получите подарок!",
     "Спасибо, что пользуетесь TRUBA!\n— команда разработчиков"
   ];
 
@@ -280,7 +280,7 @@
     mode = mode === "login" ? "register" : "login";
     el("auth-subtitle").textContent = mode === "login"
       ? "Войдите, чтобы продолжить переписку"
-      : "Создайте аккаунт за 10 секунд";
+      : "Создайте аккаунт всего за 10 секунд";
     el("auth-submit-btn").textContent = mode === "login" ? "Войти" : "Зарегистрироваться";
     el("switch-prompt").textContent = mode === "login" ? "Нет аккаунта? " : "Уже есть аккаунт? ";
     el("switch-link").textContent = mode === "login" ? "Зарегистрироваться" : "Войти";
@@ -393,7 +393,7 @@
       if (others.length === 0) {
         const empty = document.createElement("div");
         empty.className = "empty-note";
-        empty.textContent = "Пока никто больше не зарегистрирован. Позовите друга — как только он зарегистрируется, вы увидите друг друга здесь.";
+        empty.textContent = "Пока никто больше не зарегистрирован.";
         listEl.appendChild(empty);
         return;
       }
