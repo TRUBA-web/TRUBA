@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Provod — мессенджер</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&display=swap');
+
+  :root {
+    --bg: #0F1115;
+    --panel: #12141A;
+    --panel-2: #171A21;
+    --border: #22252D;
+    --text: #E8E9ED;
+    --muted: #8B90A0;
+    --muted-2: #565A66;
+    --accent: #6C5CE7;
+    --accent-2: #5B4BD1;
+    --teal: #2DD4BF;
+    --bubble-other: #1D2029;
+    --danger: #FF6B6B;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  input, textarea, button { font-family: inherit; }
+
+  /* ---------- Auth screen ---------- */
+  #auth-screen {
+    width: 380px;
+    max-width: 92vw;
+    background: var(--panel-2);
+    border-radius: 20px;
+    padding: 36px 32px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    border: 1px solid var(--border);
+  }
+  .logo-row { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+  .logo-badge {
+    width: 36px; height: 36px; border-radius: 10px;
+    background: linear-gradient(135deg, var(--accent), var(--teal));
+    display: flex; align-items: center; justify-content: center;
+  }
+  .logo-title {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 22px; font-weight: 700; margin: 0; letter-spacing: -0.02em;
+  }
+  .subtitle { color: var(--muted); font-size: 13px; margin: 0 0 28px 0; }
+  .field { width: 100%; background: var(--bg); border: 1px solid #262A34; border-radius: 12px;
+    color: var(--text); padding: 12px 14px; font-size: 14px; outline: none; margin-bottom: 12px; }
+  .field:focus { border-color: var(--accent); }
+  .primary-btn {
+    margin-top: 8px; width: 100%; padding: 13px; border-radius: 12px; border: none;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: #fff;
+    font-weight: 600; font-size: 14px; cursor: pointer; display: flex; align-items: center;
+    justify-content: center; gap: 8px;
+  }
+  .primary-btn:disabled { opacity: 0.6; cursor: default; }
+  .switch-row { text-align: center; margin-top: 18px; font-size: 13px; color: var(--muted); }
+  .switch-link { color: var(--accent); cursor: pointer; font-weight: 600; }
+  .error-text { color: var(--danger); font-size: 13px; margin-top: 4px; min-height: 16px; }
+  .fine-print { margin-top: 20px; font-size: 11px; color: var(--muted-2); line-height: 1.5; }
+
+  /* ---------- App screen ---------- */
+  #app-screen { display: none; width: 100%; height: 100vh; }
+  .app-shell { display: flex; width: 100%; height: 100%; }
+
+  .sidebar { width: 270px; background: var(--panel); border-right: 1px solid var(--border);
+    display: flex; flex-direction: column; }
+  .sidebar-header { padding: 18px 16px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between; }
+  .me-row { display: flex; align-items: center; gap: 10px; overflow: hidden; }
+  .avatar { border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-weight: 700; flex-shrink: 0; }
+  .me-name { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .icon-btn { background: transparent; border: none; color: var(--muted); cursor: pointer; padding: 6px; display: flex; }
+  .list-label { padding: 12px 16px 4px; font-size: 11px; color: var(--muted-2); font-weight: 600; letter-spacing: 0.05em; }
+  .user-list { overflow-y: auto; flex: 1; }
+  .user-row { padding: 10px 16px; display: flex; align-items: center; gap: 10px; cursor: pointer; }
+  .user-row:hover, .user-row.active { background: #1D2029; }
+  .user-row-name { font-size: 13.5px; font-weight: 500; }
+  .empty-note { padding: 16px; font-size: 13px; color: var(--muted-2); }
+
+  .chat-panel { flex: 1; display: flex; flex-direction: column; background: var(--bg); }
+  .chat-header { padding: 16px 22px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; }
+  .chat-header-name { font-weight: 600; font-size: 14.5px; }
+  .messages { flex: 1; overflow-y: auto; padding: 20px 22px; display: flex; flex-direction: column; gap: 10px; }
+  .msg-row { display: flex; flex-direction: column; max-width: 62%; }
+  .msg-row.mine { align-self: flex-end; align-items: flex-end; }
+  .msg-row.theirs { align-self: flex-start; align-items: flex-start; }
+  .bubble { padding: 10px 14px; border-radius: 16px 16px 16px 4px; font-size: 14px; line-height: 1.4; word-break: break-word; background: var(--bubble-other); color: #fff; }
+  .msg-row.mine .bubble { background: linear-gradient(135deg, var(--accent), var(--accent-2)); border-radius: 16px 16px 4px 16px; }
+  .msg-time { font-size: 10.5px; color: var(--muted-2); margin-top: 3px; }
+  .composer { padding: 16px 22px; border-top: 1px solid var(--border); display: flex; gap: 10px; }
+  .composer textarea { flex: 1; resize: none; background: var(--panel-2); border: 1px solid #262A34;
+    border-radius: 12px; color: var(--text); padding: 12px 14px; font-size: 14px; outline: none; }
+  .send-btn { background: linear-gradient(135deg, var(--accent), var(--accent-2)); border: none; border-radius: 12px;
+    width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; }
+  .placeholder-center { margin: auto; text-align: center; color: var(--muted-2); }
+</style>
+</head>
+<body>
+
+<!-- ================= AUTH SCREEN ================= -->
+<div id="auth-screen">
+  <div class="logo-row">
+    <div class="logo-badge">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V6a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v9Z" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+    <h1 class="logo-title">Provod</h1>
+  </div>
+  <p class="subtitle" id="auth-subtitle">Войдите, чтобы продолжить переписку</p>
+
+  <input class="field" id="username-input" placeholder="Имя пользователя" autocomplete="username" />
+  <input class="field" id="password-input" type="password" placeholder="Пароль" autocomplete="current-password" />
+  <div class="error-text" id="auth-error"></div>
+
+  <button class="primary-btn" id="auth-submit-btn">Войти</button>
+
+  <div class="switch-row">
+    <span id="switch-prompt">Нет аккаунта? </span>
+    <span class="switch-link" id="switch-link">Зарегистрироваться</span>
+  </div>
+
+  <div class="fine-print">
+    Это ваш собственный мессенджер на Firebase. Пароли обрабатываются Firebase Authentication,
+    сообщения хранятся в Firestore и видны только участникам переписки (если вы настроили правила безопасности).
+  </div>
+</div>
+
+<!-- ================= APP SCREEN ================= -->
+<div id="app-screen">
+  <div class="app-shell">
+    <div class="sidebar">
+      <div class="sidebar-header">
+        <div class="me-row">
+          <div class="avatar" id="me-avatar" style="width:34px;height:34px;font-size:14px;"></div>
+          <div class="me-name" id="me-name"></div>
+        </div>
+        <button class="icon-btn" id="logout-btn" title="Выйти">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+      <div class="list-label" id="users-label">ПОЛЬЗОВАТЕЛИ</div>
+      <div class="user-list" id="user-list"></div>
+    </div>
+
+    <div class="chat-panel">
+      <div id="no-chat-placeholder" class="placeholder-center">
+        <div style="font-size:14px;">Выберите собеседника слева, чтобы начать переписку</div>
+      </div>
+      <div id="chat-active" style="display:none; height:100%; display:flex; flex-direction:column;">
+        <div class="chat-header">
+          <div class="avatar" id="chat-avatar" style="width:30px;height:30px;font-size:12px;"></div>
+          <div class="chat-header-name" id="chat-header-name"></div>
+        </div>
+        <div class="messages" id="messages"></div>
+        <div class="composer">
+          <textarea id="draft-input" rows="1" placeholder="Написать сообщение..."></textarea>
+          <button class="send-btn" id="send-btn">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="m22 2-7 20-4-9-9-4 20-7Z" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= FIREBASE ================= -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import {
+    getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword,
+    onAuthStateChanged, signOut
+  } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+  import {
+    getFirestore, doc, setDoc, getDoc, collection, query, where,
+    onSnapshot, addDoc, serverTimestamp, orderBy, getDocs
+  } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+  // ======================================================================
+  // 1) ВСТАВЬ СЮДА СВОЙ FIREBASE CONFIG (Project settings -> General -> Your apps)
+  // ======================================================================
+  const firebaseConfig = {
+  apiKey: "AIzaSyDJdfwM0tOJEOUsdN-VDtW7oWatJOi5obo",
+  authDomain: "truba-9fc31.firebaseapp.com",
+  projectId: "truba-9fc31",
+  storageBucket: "truba-9fc31.firebasestorage.app",
+  messagingSenderId: "723117237157",
+  appId: "1:723117237157:web:a36f926b71a00a0be17e4c"
+  };
+  // ======================================================================
+
+  const EMAIL_DOMAIN = "provod.local"; // фейковый домен: username -> username@provod.local
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+
+  // ---------- state ----------
+  let mode = "login"; // login | register
+  let currentUid = null;
+  let currentUsername = null;
+  let activeContact = null; // { uid, username }
+  let unsubMessages = null;
+  let unsubUsers = null;
+
+  // ---------- helpers ----------
+  function hashColor(str) {
+    let h = 0;
+    for (let i = 0; i < str.length; i++) h = str.charCodeAt(i) + ((h << 5) - h);
+    const hue = Math.abs(h) % 360;
+    return `hsl(${hue}, 65%, 55%)`;
+  }
+  function convId(a, b) { return [a, b].sort().join("__"); }
+  function timeStr(ts) {
+    if (!ts) return "";
+    const d = ts.toDate ? ts.toDate() : new Date(ts);
+    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  }
+  function el(id) { return document.getElementById(id); }
+
+  // ---------- AUTH UI ----------
+  el("switch-link").addEventListener("click", () => {
+    mode = mode === "login" ? "register" : "login";
+    el("auth-subtitle").textContent = mode === "login"
+      ? "Войдите, чтобы продолжить переписку"
+      : "Создайте аккаунт за 10 секунд";
+    el("auth-submit-btn").textContent = mode === "login" ? "Войти" : "Зарегистрироваться";
+    el("switch-prompt").textContent = mode === "login" ? "Нет аккаунта? " : "Уже есть аккаунт? ";
+    el("switch-link").textContent = mode === "login" ? "Зарегистрироваться" : "Войти";
+    el("auth-error").textContent = "";
+  });
+
+  el("auth-submit-btn").addEventListener("click", handleAuthSubmit);
+  el("password-input").addEventListener("keydown", (e) => { if (e.key === "Enter") handleAuthSubmit(); });
+
+  async function handleAuthSubmit() {
+    const username = el("username-input").value.trim();
+    const password = el("password-input").value;
+    const errorEl = el("auth-error");
+    errorEl.textContent = "";
+
+    if (!username || !password) { errorEl.textContent = "Заполните имя пользователя и пароль"; return; }
+    if (!/^[a-zA-Z0-9_]{2,20}$/.test(username)) {
+      errorEl.textContent = "Имя: только буквы/цифры/подчёркивание, 2-20 символов";
+      return;
+    }
+
+    const btn = el("auth-submit-btn");
+    btn.disabled = true;
+    btn.textContent = "Подождите...";
+    const fakeEmail = `${username.toLowerCase()}@${EMAIL_DOMAIN}`;
+
+    try {
+      if (mode === "register") {
+        const usernameLower = username.toLowerCase();
+        const takenSnap = await getDoc(doc(db, "usernames", usernameLower));
+        if (takenSnap.exists()) throw { code: "custom/username-taken" };
+
+        const cred = await createUserWithEmailAndPassword(auth, fakeEmail, password);
+        await setDoc(doc(db, "users", cred.user.uid), { username, usernameLower });
+        await setDoc(doc(db, "usernames", usernameLower), { uid: cred.user.uid });
+      } else {
+        await signInWithEmailAndPassword(auth, fakeEmail, password);
+      }
+    } catch (err) {
+      errorEl.textContent = mapAuthError(err);
+      btn.disabled = false;
+      btn.textContent = mode === "login" ? "Войти" : "Зарегистрироваться";
+    }
+  }
+
+  function mapAuthError(err) {
+    switch (err.code) {
+      case "custom/username-taken": return "Такое имя пользователя уже занято";
+      case "auth/email-already-in-use": return "Такой пользователь уже существует";
+      case "auth/invalid-credential":
+      case "auth/wrong-password":
+      case "auth/user-not-found": return "Неверное имя пользователя или пароль";
+      case "auth/weak-password": return "Пароль слишком короткий (минимум 6 символов)";
+      default: return "Ошибка: " + (err.code || err.message || "неизвестная");
+    }
+  }
+
+  el("logout-btn").addEventListener("click", () => signOut(auth));
+
+  // ---------- AUTH STATE ----------
+  onAuthStateChanged(auth, async (user) => {
+    if (user) {
+      const snap = await getDoc(doc(db, "users", user.uid));
+      currentUid = user.uid;
+      currentUsername = snap.exists() ? snap.data().username : user.email.split("@")[0];
+      showApp();
+    } else {
+      currentUid = null;
+      currentUsername = null;
+      activeContact = null;
+      if (unsubMessages) unsubMessages();
+      if (unsubUsers) unsubUsers();
+      showAuth();
+    }
+  });
+
+  function showAuth() {
+    el("auth-screen").style.display = "block";
+    el("app-screen").style.display = "none";
+    el("auth-submit-btn").disabled = false;
+    el("password-input").value = "";
+  }
+
+  function showApp() {
+    el("auth-screen").style.display = "none";
+    el("app-screen").style.display = "block";
+
+    el("me-name").textContent = currentUsername;
+    const meAv = el("me-avatar");
+    meAv.style.background = hashColor(currentUsername);
+    meAv.textContent = currentUsername[0].toUpperCase();
+
+    listenUsers();
+  }
+
+  // ---------- USER LIST ----------
+  function listenUsers() {
+    const q = query(collection(db, "users"));
+    unsubUsers = onSnapshot(q, (snap) => {
+      const listEl = el("user-list");
+      listEl.innerHTML = "";
+      const others = [];
+      snap.forEach((d) => {
+        if (d.id !== currentUid) others.push({ uid: d.id, username: d.data().username });
+      });
+      el("users-label").textContent = `ПОЛЬЗОВАТЕЛИ (${others.length})`;
+
+      if (others.length === 0) {
+        const empty = document.createElement("div");
+        empty.className = "empty-note";
+        empty.textContent = "Пока никто больше не зарегистрирован. Позовите друга!";
+        listEl.appendChild(empty);
+        return;
+      }
+
+      others.forEach((u) => {
+        const row = document.createElement("div");
+        row.className = "user-row" + (activeContact && activeContact.uid === u.uid ? " active" : "");
+        row.innerHTML = `
+          <div class="avatar" style="width:30px;height:30px;font-size:12px;background:${hashColor(u.username)}">${u.username[0].toUpperCase()}</div>
+          <div class="user-row-name">${escapeHtml(u.username)}</div>
+        `;
+        row.addEventListener("click", () => openConversation(u));
+        listEl.appendChild(row);
+      });
+    });
+  }
+
+  // ---------- CONVERSATION ----------
+  function openConversation(user) {
+    activeContact = user;
+    el("no-chat-placeholder").style.display = "none";
+    el("chat-active").style.display = "flex";
+    el("chat-header-name").textContent = user.username;
+    const av = el("chat-avatar");
+    av.style.background = hashColor(user.username);
+    av.textContent = user.username[0].toUpperCase();
+
+    document.querySelectorAll(".user-row").forEach((r) => r.classList.remove("active"));
+
+    if (unsubMessages) unsubMessages();
+    const cId = convId(currentUid, user.uid);
+    const q = query(collection(db, "messages"), where("convId", "==", cId), orderBy("ts", "asc"));
+    unsubMessages = onSnapshot(q, (snap) => {
+      const msgsEl = el("messages");
+      msgsEl.innerHTML = "";
+      if (snap.empty) {
+        const empty = document.createElement("div");
+        empty.className = "placeholder-center";
+        empty.textContent = "Пока нет сообщений. Напишите первым.";
+        msgsEl.appendChild(empty);
+        return;
+      }
+      snap.forEach((d) => {
+        const m = d.data();
+        const mine = m.from === currentUid;
+        const row = document.createElement("div");
+        row.className = "msg-row " + (mine ? "mine" : "theirs");
+        row.innerHTML = `
+          <div class="bubble">${escapeHtml(m.text)}</div>
+          <div class="msg-time">${timeStr(m.ts)}</div>
+        `;
+        msgsEl.appendChild(row);
+      });
+      msgsEl.scrollTop = msgsEl.scrollHeight;
+    });
+  }
+
+  function escapeHtml(str) {
+    const d = document.createElement("div");
+    d.textContent = str;
+    return d.innerHTML;
+  }
+
+  // ---------- SEND MESSAGE ----------
+  el("send-btn").addEventListener("click", sendMessage);
+  el("draft-input").addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+  });
+
+  async function sendMessage() {
+    const input = el("draft-input");
+    const text = input.value.trim();
+    if (!text || !activeContact) return;
+    input.value = "";
+    await addDoc(collection(db, "messages"), {
+      convId: convId(currentUid, activeContact.uid),
+      from: currentUid,
+      to: activeContact.uid,
+      text,
+      ts: serverTimestamp()
+    });
+  }
+</script>
+</body>
+  </html>
+  
