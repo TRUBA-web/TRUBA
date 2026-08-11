@@ -79,7 +79,7 @@
   .app-shell { display: flex; width: 100%; height: 100%; }
 
   .sidebar { width: 320px; background: var(--sidebar-bg); border-right: 1px solid var(--border);
-    display: flex; flex-direction: column; flex-shrink: 0; }
+    display: flex; flex-direction: column; flex-shrink: 0; position: relative; }
   .sidebar-header { padding: 14px 16px; display: flex; align-items: center; justify-content: space-between;
     border-bottom: 1px solid var(--border); }
   .me-row { display: flex; align-items: center; gap: 10px; overflow: hidden; cursor: pointer; border-radius: 10px;
@@ -94,6 +94,20 @@
   .icon-btn { background: transparent; border: none; color: var(--muted); cursor: pointer; padding: 8px;
     display: flex; border-radius: 50%; }
   .icon-btn:hover { background: var(--hover); }
+
+  .hamburger-menu { position: absolute; top: 58px; left: 8px; width: 220px; background: #fff;
+    border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,0.18); border: 1px solid var(--border);
+    padding: 6px; display: none; z-index: 50; }
+  .hamburger-item { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 8px;
+    font-size: 14.5px; cursor: pointer; color: var(--text); }
+  .hamburger-item:hover { background: var(--hover); }
+  .hamburger-item.danger { color: var(--danger); }
+  .hamburger-item.danger svg { color: var(--danger); }
+  .hamburger-divider { height: 1px; background: var(--border); margin: 6px 4px; }
+
+  .search-row { display: flex; align-items: center; gap: 8px; margin: 10px 16px 4px; background: #F5F5F5;
+    border-radius: 20px; padding: 8px 14px; color: var(--muted); }
+  .search-row input { flex: 1; border: none; background: transparent; outline: none; font-size: 14px; color: var(--text); }
 
   .list-label { padding: 14px 16px 6px; font-size: 12.5px; color: var(--muted); font-weight: 600; }
   .user-list { overflow-y: auto; flex: 1; }
@@ -209,6 +223,9 @@
   <div class="app-shell">
     <div class="sidebar">
       <div class="sidebar-header">
+        <button class="icon-btn" id="hamburger-btn" title="Меню">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
         <div class="me-row" id="me-profile-btn">
           <div class="avatar" id="me-avatar" style="width:38px;height:38px;font-size:15px;"></div>
           <div>
@@ -216,9 +233,32 @@
             <div class="me-name" id="me-name"></div>
           </div>
         </div>
-        <button class="icon-btn" id="logout-btn" title="Выйти">
+        <div style="width:34px;"></div>
+      </div>
+
+      <div class="hamburger-menu" id="hamburger-menu">
+        <div class="hamburger-item" id="menu-profile">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M20 21a8 8 0 1 0-16 0M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Профиль
+        </div>
+        <div class="hamburger-item" id="menu-settings">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06A2 2 0 1 1 7.04 4.3l.06.06A1.65 1.65 0 0 0 8.92 4.7 1.65 1.65 0 0 0 10 3.09V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.3 9c.14.36.4.68.7.9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Настройки
+        </div>
+        <div class="hamburger-item" id="menu-about">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/><path d="M12 16v-4M12 8h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          О TRUBA
+        </div>
+        <div class="hamburger-divider"></div>
+        <div class="hamburger-item danger" id="menu-logout">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        </button>
+          Выйти
+        </div>
+      </div>
+
+      <div class="search-row">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="m21 21-4.3-4.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        <input id="chat-search" placeholder="Поиск" autocomplete="off" />
       </div>
 
       <div class="user-list" id="user-list-scroll">
@@ -637,9 +677,49 @@ async function handleConfirmCode() {
 
 /* ============================ LOGOUT ============================ */
 
-el("logout-btn").addEventListener("click", async function () {
+/* ============================ HAMBURGER MENU ============================ */
+
+el("hamburger-btn").addEventListener("click", function (e) {
+  e.stopPropagation();
+  const menu = el("hamburger-menu");
+  menu.style.display = menu.style.display === "block" ? "none" : "block";
+});
+document.addEventListener("click", function (e) {
+  const menu = el("hamburger-menu");
+  if (menu.style.display === "block" && !menu.contains(e.target) && e.target.id !== "hamburger-btn") {
+    menu.style.display = "none";
+  }
+});
+
+el("menu-profile").addEventListener("click", function () {
+  el("hamburger-menu").style.display = "none";
+  openOwnProfile();
+});
+el("menu-settings").addEventListener("click", function () {
+  el("hamburger-menu").style.display = "none";
+  alert("Настройки появятся в одном из следующих обновлений TRUBA.");
+});
+el("menu-about").addEventListener("click", function () {
+  el("hamburger-menu").style.display = "none";
+  alert("TRUBA — простой и быстрый мессенджер.");
+});
+el("menu-logout").addEventListener("click", async function () {
+  el("hamburger-menu").style.display = "none";
   await setPresence(false);
   signOut(auth).catch(function (err) { console.error("[TRUBA] Logout:", err); });
+});
+
+/* ============================ CHAT SEARCH ============================ */
+
+el("chat-search").addEventListener("input", function () {
+  const term = el("chat-search").value.trim().toLowerCase();
+  const systemRow = el("system-chat-row");
+  systemRow.style.display = ("truba".indexOf(term) !== -1 || !term) ? "flex" : "none";
+  document.querySelectorAll("#user-list .user-row").forEach(function (row) {
+    const name = row.querySelector(".user-row-name");
+    const match = !term || (name && name.textContent.toLowerCase().indexOf(term) !== -1);
+    row.style.display = match ? "flex" : "none";
+  });
 });
 
 /* ============================ AUTH STATE ============================ */
@@ -850,15 +930,18 @@ function openConversation(user, rowEl) {
     renderMessages();
   }, function () {});
 
+  // NOTE: no orderBy here on purpose — where()+orderBy() on different fields
+  // needs a Firestore composite index. We sort client-side instead, which
+  // needs no extra setup and avoids messages silently failing to load.
   const q = query(
     collection(db, "messages"),
-    where("convId", "==", cId),
-    orderBy("ts", "asc")
+    where("convId", "==", cId)
   );
 
   unsubMessages = onSnapshot(q, function (snapshot) {
     cachedMessages = [];
     snapshot.forEach(function (item) { cachedMessages.push(item.data()); });
+    cachedMessages.sort(function (a, b) { return tsMillis(a.ts) - tsMillis(b.ts); });
     renderMessages();
     markRead(cId);
   }, function (err) {
