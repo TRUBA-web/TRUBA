@@ -210,7 +210,6 @@
 
 <!-- ================= FIREBASE ================= -->
 <script type="module">
- console.log("TRUBA JS ЗАПУЩЕН");
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
   import {
     getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword,
@@ -234,18 +233,29 @@
   };
   // ======================================================================
 
-  const EMAIL_DOMAIN = "provod.local";
+  const EMAIL_DOMAIN = "truba.local";
 
-  const app = initializeApp(firebaseConfig);
-  const auth = getAuth(app);
-  const db = getFirestore(app);
+  let app, auth, db;
+
+  try {
+    console.log("[TRUBA] Инициализация Firebase...");
+    app = initializeApp(firebaseConfig);
+    auth = getAuth(app);
+    db = getFirestore(app);
+    console.log("[TRUBA] Firebase успешно подключен");
+  } catch (err) {
+    console.error("[TRUBA] Ошибка инициализации Firebase:", err);
+    const errorEl = document.getElementById("auth-error");
+    if (errorEl) errorEl.textContent = "Не удалось подключить Firebase. Откройте F12 → Console.";
+    throw err;
+  }
 
   // ---------- welcome system chat (client-side only, not stored) ----------
   const SYSTEM_CHAT_ID = "__truba_system__";
   const WELCOME_MESSAGES = [
     "Добро пожаловать в TRUBA! 👋",
-    "TRUBA — простой, быстрый и без лишнего.",
-    "Зарегистрируйте друга и вы получите подарок!",
+    "Это ваш собственный мессенджер — простой, быстрый и без лишнего.",
+    "Зарегистрируйте друга под другим именем, и он появится в списке слева — там и начнётся настоящая переписка.",
     "Спасибо, что пользуетесь TRUBA!\n— команда разработчиков"
   ];
 
@@ -281,7 +291,7 @@
     mode = mode === "login" ? "register" : "login";
     el("auth-subtitle").textContent = mode === "login"
       ? "Войдите, чтобы продолжить переписку"
-      : "Создайте аккаунт всего за 10 секунд";
+      : "Создайте аккаунт за 10 секунд";
     el("auth-submit-btn").textContent = mode === "login" ? "Войти" : "Зарегистрироваться";
     el("switch-prompt").textContent = mode === "login" ? "Нет аккаунта? " : "Уже есть аккаунт? ";
     el("switch-link").textContent = mode === "login" ? "Зарегистрироваться" : "Войти";
@@ -292,35 +302,75 @@
   el("password-input").addEventListener("keydown", (e) => { if (e.key === "Enter") handleAuthSubmit(); });
 
   async function handleAuthSubmit() {
+    console.log("[TRUBA] Нажата кнопка:", mode === "login" ? "Войти" : "Зарегистрироваться");
+
     const username = el("username-input").value.trim();
     const password = el("password-input").value;
     const errorEl = el("auth-error");
+    const btn = el("auth-submit-btn");
+
     errorEl.textContent = "";
 
-    if (!username || !password) { errorEl.textContent = "Заполните имя пользователя и пароль"; return; }
+    if (!username || !password) {
+      errorEl.textContent = "Заполните имя пользователя и пароль";
+      return;
+    }
+
     if (!/^[a-zA-Z0-9_]{2,20}$/.test(username)) {
       errorEl.textContent = "Имя: только буквы/цифры/подчёркивание, 2-20 символов";
       return;
     }
 
-    const btn = el("auth-submit-btn");
+    if (password.length < 6) {
+      errorEl.textContent = "Пароль должен содержать минимум 6 символов";
+      return;
+    }
+
+    if (!auth || !db) {
+      errorEl.textContent = "Firebase ещё не инициализирован";
+      console.error("[TRUBA] auth/db недоступны");
+      return;
+    }
+
     btn.disabled = true;
     btn.textContent = "Подождите...";
+
     const fakeEmail = `${username.toLowerCase()}@${EMAIL_DOMAIN}`;
+    console.log("[TRUBA] Авторизация:", fakeEmail);
 
     try {
       if (mode === "register") {
         const usernameLower = username.toLowerCase();
-        const takenSnap = await getDoc(doc(db, "usernames", usernameLower));
-        if (takenSnap.exists()) throw { code: "custom/username-taken" };
 
+        console.log("[TRUBA] Проверяем имя пользователя...");
+        const takenSnap = await getDoc(doc(db, "usernames", usernameLower));
+
+        if (takenSnap.exists()) {
+          throw { code: "custom/username-taken" };
+        }
+
+        console.log("[TRUBA] Создаём Firebase аккаунт...");
         const cred = await createUserWithEmailAndPassword(auth, fakeEmail, password);
-        await setDoc(doc(db, "users", cred.user.uid), { username, usernameLower });
-        await setDoc(doc(db, "usernames", usernameLower), { uid: cred.user.uid });
+
+        console.log("[TRUBA] Сохраняем профиль...");
+        await setDoc(doc(db, "users", cred.user.uid), {
+          username,
+          usernameLower,
+          createdAt: serverTimestamp()
+        });
+
+        await setDoc(doc(db, "usernames", usernameLower), {
+          uid: cred.user.uid
+        });
+
+        console.log("[TRUBA] Регистрация успешно завершена:", cred.user.uid);
       } else {
-        await signInWithEmailAndPassword(auth, fakeEmail, password);
+        console.log("[TRUBA] Выполняем вход...");
+        const cred = await signInWithEmailAndPassword(auth, fakeEmail, password);
+        console.log("[TRUBA] Вход успешно выполнен:", cred.user.uid);
       }
     } catch (err) {
+      console.error("[TRUBA] Ошибка авторизации:", err);
       errorEl.textContent = mapAuthError(err);
       btn.disabled = false;
       btn.textContent = mode === "login" ? "Войти" : "Зарегистрироваться";
@@ -328,15 +378,33 @@
   }
 
   function mapAuthError(err) {
-    switch (err.code) {
-      case "custom/username-taken": return "Такое имя пользователя уже занято";
-      case "auth/email-already-in-use": return "Такой пользователь уже существует";
+    console.error("[TRUBA] Firebase error:", err?.code, err?.message);
+
+    switch (err?.code) {
+      case "custom/username-taken":
+        return "Такое имя пользователя уже занято";
+      case "auth/email-already-in-use":
+        return "Такой пользователь уже существует";
       case "auth/invalid-credential":
       case "auth/wrong-password":
-      case "auth/user-not-found": return "Неверное имя пользователя или пароль";
-      case "auth/weak-password": return "Пароль слишком короткий (минимум 6 символов)";
-      case "auth/configuration-not-found": return "Firebase не настроен: включите Email/Password в Authentication → Sign-in method";
-      default: return "Ошибка: " + (err.code || err.message || "неизвестная");
+      case "auth/user-not-found":
+      case "auth/invalid-login-credentials":
+        return "Неверное имя пользователя или пароль";
+      case "auth/weak-password":
+        return "Пароль слишком короткий (минимум 6 символов)";
+      case "auth/operation-not-allowed":
+        return "В Firebase не включён вход по Email/Password";
+      case "auth/configuration-not-found":
+        return "Firebase не настроен: включите Email/Password";
+      case "auth/too-many-requests":
+        return "Слишком много попыток. Попробуйте позже";
+      case "auth/network-request-failed":
+        return "Ошибка сети. Проверьте интернет-соединение";
+      case "permission-denied":
+      case "firestore/permission-denied":
+        return "Firebase Firestore запретил доступ. Проверьте правила Firestore";
+      default:
+        return "Ошибка: " + (err?.code || err?.message || "неизвестная");
     }
   }
 
@@ -344,11 +412,20 @@
 
   // ---------- AUTH STATE ----------
   onAuthStateChanged(auth, async (user) => {
+    console.log("[TRUBA] Состояние авторизации:", user ? user.uid : "не авторизован");
+
     if (user) {
-      const snap = await getDoc(doc(db, "users", user.uid));
-      currentUid = user.uid;
-      currentUsername = snap.exists() ? snap.data().username : user.email.split("@")[0];
-      showApp();
+      try {
+        const snap = await getDoc(doc(db, "users", user.uid));
+        currentUid = user.uid;
+        currentUsername = snap.exists() ? snap.data().username : user.email.split("@")[0];
+        showApp();
+      } catch (err) {
+        console.error("[TRUBA] Не удалось загрузить профиль:", err);
+        currentUid = user.uid;
+        currentUsername = user.email?.split("@")[0] || "Пользователь";
+        showApp();
+      }
     } else {
       currentUid = null;
       currentUsername = null;
@@ -375,7 +452,7 @@
     meAv.style.background = hashColor(currentUsername);
     meAv.textContent = currentUsername[0].toUpperCase();
 
-    el("system-chat-row").addEventListener("click", openSystemChat);
+    el("system-chat-row").onclick = openSystemChat;
 
     listenUsers();
   }
@@ -394,15 +471,15 @@
       if (others.length === 0) {
         const empty = document.createElement("div");
         empty.className = "empty-note";
-        empty.textContent = "Пока никто больше не зарегистрирован.";
+        empty.textContent = "Пока никто больше не зарегистрирован. Позовите друга — как только он зарегистрируется, вы увидите друг друга здесь.";
         listEl.appendChild(empty);
         return;
       }
 
       others.forEach((u) => {
         const row = document.createElement("div");
-        row.className = "user-row" + (activeContact && activeContact.uid === u.uid ? " active" : "");
-        row.innerHTML = `
+        row.className = "user-row" + (activeContact && activeContact.uid === u.uid ? " active
+    row.innerHTML = `
           <div class="avatar" style="width:44px;height:44px;font-size:16px;background:${hashColor(u.username)}">${u.username[0].toUpperCase()}</div>
           <div>
             <div class="user-row-name">${escapeHtml(u.username)}</div>
@@ -462,4 +539,66 @@
     if (rowEl) rowEl.classList.add("active");
 
     el("no-chat-placeholder").style.display = "none";
-   
+    el("chat-active").style.display = "flex";
+    el("chat-header-name").textContent = user.username;
+    el("chat-header-sub").textContent = "";
+    const av = el("chat-avatar");
+    av.style.background = hashColor(user.username);
+    av.textContent = user.username[0].toUpperCase();
+
+    const draft = el("draft-input");
+    draft.disabled = false;
+    draft.placeholder = "Написать сообщение...";
+    el("send-btn").disabled = false;
+
+    if (unsubMessages) unsubMessages();
+    const cId = convId(currentUid, user.uid);
+    const q = query(collection(db, "messages"), where("convId", "==", cId), orderBy("ts", "asc"));
+    unsubMessages = onSnapshot(q, (snap) => {
+      const msgsEl = el("messages");
+      msgsEl.innerHTML = "";
+      if (snap.empty) {
+        const empty = document.createElement("div");
+        empty.className = "placeholder-center";
+        empty.textContent = "Пока нет сообщений. Напишите первым.";
+        msgsEl.appendChild(empty);
+        return;
+      }
+      snap.forEach((d) => {
+        const m = d.data();
+        const mine = m.from === currentUid;
+        const row = document.createElement("div");
+        row.className = "msg-row " + (mine ? "mine" : "theirs");
+        row.innerHTML = `
+          <div class="bubble">${escapeHtml(m.text)}</div>
+          <div class="msg-time">${timeStr(m.ts)}</div>
+        `;
+        msgsEl.appendChild(row);
+      });
+      msgsEl.scrollTop = msgsEl.scrollHeight;
+    });
+  }
+
+  // ---------- SEND MESSAGE ----------
+  el("send-btn").addEventListener("click", sendMessage);
+  el("draft-input").addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+  });
+
+  async function sendMessage() {
+    const input = el("draft-input");
+    const text = input.value.trim();
+    if (!text || !activeContact || activeContact === "system") return;
+    input.value = "";
+    await addDoc(collection(db, "messages"), {
+      convId: convId(currentUid, activeContact.uid),
+      from: currentUid,
+      to: activeContact.uid,
+      text,
+      ts: serverTimestamp()
+    });
+  }
+  console.log("[TRUBA] JavaScript загружен. Кнопки авторизации готовы.");
+</script>
+</body>
+</html>
