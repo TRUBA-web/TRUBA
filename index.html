@@ -146,7 +146,7 @@
   .list-label { padding: 14px 16px 6px; font-size: 12.5px; color: var(--muted); font-weight: 600; }
   .user-list { overflow-y: auto; flex: 1; }
   .user-row { padding: 10px 16px; display: flex; align-items: center; gap: 12px; cursor: pointer;
-    transition: background 0.1s ease; animation: fadeUp 0.2s ease; }
+    transition: background 0.1s ease; animation: fadeUp 0.2s ease; position: relative; }
   .user-row:hover { background: var(--hover); }
   .user-row.active { background: var(--active); }
   .user-row-name { font-size: 15px; font-weight: 600; display: flex; align-items: center; gap: 5px; }
@@ -155,6 +155,10 @@
   .chip-badge { font-size: 10px; padding: 1px 6px; border-radius: 6px; background: var(--panel-2); color: var(--muted); font-weight: 700; }
   .chip-badge.channel { color: #E8A64C; }
   .chip-badge.group { color: #8EC5FF; }
+  .row-delete-btn { opacity: 0; background: transparent; border: none; color: var(--muted); cursor: pointer;
+    padding: 6px; border-radius: 50%; flex-shrink: 0; transition: opacity 0.1s ease, background 0.1s ease; }
+  .user-row:hover .row-delete-btn { opacity: 1; }
+  .row-delete-btn:hover { background: rgba(255,107,107,0.15); color: var(--danger); }
 
   .chat-panel { flex: 1; display: flex; flex-direction: column; background: var(--chat-bg); min-width: 0;
     background-image: radial-gradient(circle at 20% 10%, rgba(76,126,243,0.05), transparent 40%),
@@ -231,6 +235,22 @@
   .member-chip .x { cursor: pointer; color: var(--muted); font-weight: 700; }
   #group-members-list { margin: 6px 0 4px; }
   #group-search-results .user-row { padding: 8px 6px; border-radius: 8px; }
+
+  .member-row { display: flex; align-items: center; gap: 10px; padding: 8px 4px; position: relative; }
+  .member-row .info { flex: 1; min-width: 0; }
+  .member-row .name { font-size: 14.5px; font-weight: 600; display: flex; align-items: center; gap: 6px; }
+  .member-row .sub { font-size: 12.5px; color: var(--muted); }
+  .role-badge { font-size: 10px; padding: 1px 7px; border-radius: 7px; font-weight: 700; }
+  .role-badge.owner { background: rgba(232,166,76,0.18); color: #E8A64C; }
+  .role-badge.admin { background: rgba(76,126,243,0.18); color: #7FA6FF; }
+  .member-menu-btn { background: transparent; border: none; color: var(--muted); cursor: pointer; padding: 6px; border-radius: 50%; }
+  .member-menu-btn:hover { background: var(--hover); }
+  .member-dropdown { position: absolute; right: 4px; top: 40px; background: var(--panel); border: 1px solid var(--border);
+    border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); padding: 6px; z-index: 20; min-width: 170px; display: none; }
+  .member-dropdown.open { display: block; }
+  .member-dropdown-item { padding: 8px 10px; font-size: 13.5px; border-radius: 7px; cursor: pointer; }
+  .member-dropdown-item:hover { background: var(--hover); }
+  .member-dropdown-item.danger { color: var(--danger); }
 
   /* ---------- Call overlay ---------- */
   #call-overlay { position: fixed; inset: 0; background: linear-gradient(180deg, #0E1526, #05070E); display: none;
@@ -367,10 +387,20 @@
             <div class="chat-header-name" id="chat-header-name"></div>
             <div class="chat-header-sub" id="chat-header-sub"></div>
           </div>
-          <div class="chat-header-actions" id="chat-header-actions">
+          <div class="chat-header-actions" id="chat-header-actions" style="position:relative;">
             <button class="icon-btn" id="call-btn" title="Позвонить">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.362 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.338 1.85.573 2.81.7A2 2 0 0 1 22 16.92Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </button>
+            <button class="icon-btn" id="dm-menu-btn" title="Ещё">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="5" r="1.6" fill="currentColor"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/><circle cx="12" cy="19" r="1.6" fill="currentColor"/></svg>
+            </button>
+            <div class="hamburger-menu" id="dm-menu" style="top:44px; left:auto; right:0;">
+              <div class="hamburger-item" id="dm-block-item"></div>
+              <div class="hamburger-item danger" id="dm-delete-item">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                Удалить чат
+              </div>
+            </div>
           </div>
         </div>
         <div class="messages" id="messages"></div>
@@ -444,6 +474,27 @@
   </div>
 </div>
 
+<!-- ================= GROUP/CHANNEL INFO MODAL ================= -->
+<div class="modal-overlay" id="group-info-modal">
+  <div class="modal-box" style="width:380px;">
+    <button class="modal-close" id="group-info-close">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M18 6 6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    </button>
+    <div class="modal-avatar-row" style="margin-bottom:8px;">
+      <div class="avatar" id="group-info-icon" style="width:64px;height:64px;font-size:24px;"></div>
+      <div style="font-size:17px; font-weight:700;" id="group-info-name"></div>
+      <div class="modal-username" id="group-info-sub"></div>
+    </div>
+    <div id="group-info-add-row" style="display:none;">
+      <input class="modal-bio-input" id="group-info-search" placeholder="Добавить участника: @username" />
+      <div id="group-info-search-results"></div>
+    </div>
+    <div class="modal-label" id="group-info-members-label">Участники</div>
+    <div id="group-info-members-list"></div>
+    <div id="group-info-danger-zone" style="margin-top:16px;"></div>
+  </div>
+</div>
+
 <!-- ================= CALL OVERLAY ================= -->
 <div id="call-overlay">
   <div></div>
@@ -467,7 +518,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {
   getFirestore, doc, setDoc, getDoc, collection, query, where,
-  onSnapshot, addDoc, serverTimestamp, orderBy, arrayUnion, limit, getDocs, updateDoc, deleteDoc
+  onSnapshot, addDoc, serverTimestamp, orderBy, arrayUnion, arrayRemove, limit, getDocs, updateDoc, deleteDoc
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import {
   getStorage, ref, uploadBytes, getDownloadURL
@@ -500,6 +551,8 @@ let currentUid = null;
 let currentUsername = null;
 let currentNickname = null;
 let currentBio = "";
+let currentBlockedUsers = [];
+let contactBlockedMe = false;
 
 // activeChat: { kind: 'system'|'dm'|'group'|'channel', id, name, raw }
 let activeChat = null;
@@ -507,6 +560,8 @@ let unsubMessages = null;
 let unsubReads = null;
 let unsubUsers = null;
 let unsubContactPresence = null;
+let unsubContactUserDoc = null;
+let unsubGroupDoc = null;
 let contactLastReadMillis = 0;
 let cachedMessages = [];
 let groupMemberDraft = []; // [{uid, username, nickname}]
@@ -727,8 +782,9 @@ onAuthStateChanged(auth, async function (user) {
       currentUsername = profile.data().username;
       currentNickname = profile.data().nickname || currentUsername;
       currentBio = profile.data().bio || "";
+      currentBlockedUsers = profile.data().blockedUsers || [];
     } else {
-      currentUsername = (user.email || "user").split("@")[0]; currentNickname = currentUsername; currentBio = "";
+      currentUsername = (user.email || "user").split("@")[0]; currentNickname = currentUsername; currentBio = ""; currentBlockedUsers = [];
     }
   } catch (err) {
     console.error("[TRUBA] Profile:", err);
@@ -871,15 +927,62 @@ function listenChats() {
         const sub = document.createElement("div"); sub.className = "user-row-sub"; sub.textContent = "Нажмите, чтобы открыть";
         info.appendChild(nameRow); info.appendChild(sub);
         row.appendChild(avatar); row.appendChild(info);
+        row.appendChild(makeRowDeleteBtn(function (e) { e.stopPropagation(); deleteChatFromList(group.id, "group", group); }));
         row.addEventListener("click", function () { openGroupChat(group, row); });
         list.appendChild(row);
         return;
       }
       const user = { uid: data.contactUid, username: data.contactUsername, nickname: data.contactNickname || data.contactUsername };
       const row = buildUserRow(user, function () { openDM(user, row); });
+      row.appendChild(makeRowDeleteBtn(function (e) { e.stopPropagation(); deleteChatFromList(user.uid, "dm", user); }));
       list.appendChild(row);
     });
   }, function (err) { console.error("[TRUBA] Chats:", err); });
+}
+
+function makeRowDeleteBtn(onClick) {
+  const btn = document.createElement("button");
+  btn.className = "row-delete-btn";
+  btn.title = "Удалить чат";
+  btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  btn.addEventListener("click", onClick);
+  return btn;
+}
+
+async function deleteChatFromList(id, kind, raw) {
+  if (kind === "dm") {
+    if (!confirm("Удалить чат? Переписка исчезнет из списка (сообщения сохранятся, если собеседник напишет снова — чат вернётся).")) return;
+    try {
+      await deleteDoc(doc(db, "users", currentUid, "chats", id));
+      if (activeChat && activeChat.kind === "dm" && activeChat.id === id) exitToNoChat();
+    } catch (err) { console.error("[TRUBA] deleteChat:", err); alert("Не удалось удалить чат"); }
+    return;
+  }
+  // group/channel: "delete from list" = leave, unless you're the owner
+  try {
+    const snap = await getDoc(doc(db, "groups", id));
+    if (!snap.exists()) { await deleteDoc(doc(db, "users", currentUid, "chats", id)); return; }
+    const group = Object.assign({ id: id }, snap.data());
+    if (group.ownerUid === currentUid) {
+      alert("Вы владелец — чтобы убрать этот чат, удалите " + (group.type === "channel" ? "канал" : "группу") + " целиком через её настройки (значок ⋮ в информации о группе).");
+      return;
+    }
+    await removeMember(id, currentUid, group.type, true);
+  } catch (err) { console.error("[TRUBA] deleteChat group:", err); }
+}
+
+function exitToNoChat() {
+  activeChat = null;
+  if (unsubMessages) { unsubMessages(); unsubMessages = null; }
+  if (unsubReads) { unsubReads(); unsubReads = null; }
+  if (unsubContactPresence) { unsubContactPresence(); unsubContactPresence = null; }
+  if (unsubGroupDoc) { unsubGroupDoc(); unsubGroupDoc = null; }
+  if (unsubContactUserDoc) { unsubContactUserDoc(); unsubContactUserDoc = null; }
+  document.querySelectorAll(".user-row").forEach(function (r) { r.classList.remove("active"); });
+  el("system-chat-row").classList.remove("active");
+  el("chat-active").style.display = "none";
+  el("no-chat-placeholder").style.display = "block";
+  exitMobileChat();
 }
 
 /* ============================ SYSTEM WELCOME CHAT ============================ */
@@ -889,6 +992,8 @@ function openSystemChat() {
   if (unsubMessages) { unsubMessages(); unsubMessages = null; }
   if (unsubReads) { unsubReads(); unsubReads = null; }
   if (unsubContactPresence) { unsubContactPresence(); unsubContactPresence = null; }
+  if (unsubGroupDoc) { unsubGroupDoc(); unsubGroupDoc = null; }
+  if (unsubContactUserDoc) { unsubContactUserDoc(); unsubContactUserDoc = null; }
 
   document.querySelectorAll(".user-row").forEach(function (r) { r.classList.remove("active"); });
   el("system-chat-row").classList.add("active");
@@ -921,7 +1026,7 @@ function openSystemChat() {
 
 function openDM(user, rowEl) {
   activeChat = { kind: "dm", id: user.uid, name: user.nickname || user.username, raw: user };
-  cachedMessages = []; contactLastReadMillis = 0;
+  cachedMessages = []; contactLastReadMillis = 0; contactBlockedMe = false;
 
   document.querySelectorAll(".user-row").forEach(function (r) { r.classList.remove("active"); });
   el("system-chat-row").classList.remove("active");
@@ -942,8 +1047,20 @@ function openDM(user, rowEl) {
 
   const cId = convId(currentUid, user.uid);
   if (unsubMessages) unsubMessages();
+  if (unsubGroupDoc) { unsubGroupDoc(); unsubGroupDoc = null; }
+  if (unsubContactUserDoc) { unsubContactUserDoc(); unsubContactUserDoc = null; }
   if (unsubReads) unsubReads();
   if (unsubContactPresence) unsubContactPresence();
+
+  updateDmMenu(user);
+
+  unsubContactUserDoc = onSnapshot(doc(db, "users", user.uid), function (snap) {
+    const blockedMe = snap.exists() && (snap.data().blockedUsers || []).indexOf(currentUid) !== -1;
+    contactBlockedMe = blockedMe;
+    const blockedByMe = currentBlockedUsers.indexOf(user.uid) !== -1;
+    updateDmComposerState(blockedByMe, blockedMe);
+    updateDmMenu(user, blockedByMe);
+  }, function () {});
 
   unsubContactPresence = onSnapshot(doc(db, "presence", user.uid), function (snap) {
     el("chat-header-sub").textContent = lastSeenText(snap.exists() ? snap.data() : null);
@@ -970,7 +1087,76 @@ function markRead(cId) {
     .catch(function (err) { console.error("[TRUBA] markRead:", err); });
 }
 
+/* ============================ DM OPTIONS MENU: BLOCK / DELETE ============================ */
+
+function updateDmComposerState(blockedByMe, blockedMe) {
+  const disabled = blockedByMe || blockedMe;
+  el("draft-input").disabled = disabled;
+  el("send-btn").disabled = disabled;
+  el("attach-btn").disabled = disabled;
+  if (blockedByMe) el("draft-input").placeholder = "Вы заблокировали этого пользователя";
+  else if (blockedMe) el("draft-input").placeholder = "Вы не можете писать этому пользователю";
+  else el("draft-input").placeholder = "Написать сообщение...";
+}
+
+function updateDmMenu(user, blockedByMeOverride) {
+  const blockedByMe = typeof blockedByMeOverride === "boolean" ? blockedByMeOverride : currentBlockedUsers.indexOf(user.uid) !== -1;
+  const item = el("dm-block-item");
+  item.innerHTML = blockedByMe
+    ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/><path d="m9 12 2 2 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> Разблокировать'
+    : '<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/><path d="M4.9 4.9 19.1 19.1" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg> Заблокировать';
+  item.onclick = function () {
+    el("dm-menu").style.display = "none";
+    if (blockedByMe) unblockUser(user.uid); else blockUser(user.uid);
+  };
+}
+
+el("dm-menu-btn").addEventListener("click", function (e) {
+  e.stopPropagation();
+  const menu = el("dm-menu");
+  menu.style.display = menu.style.display === "block" ? "none" : "block";
+});
+document.addEventListener("click", function (e) {
+  const menu = el("dm-menu");
+  if (menu.style.display === "block" && !menu.contains(e.target) && e.target.id !== "dm-menu-btn") menu.style.display = "none";
+});
+el("dm-delete-item").addEventListener("click", function () {
+  el("dm-menu").style.display = "none";
+  if (!activeChat || activeChat.kind !== "dm") return;
+  deleteChatFromList(activeChat.id, "dm", activeChat.raw);
+});
+
+async function blockUser(uid) {
+  try {
+    await updateDoc(doc(db, "users", currentUid), { blockedUsers: arrayUnion(uid) });
+    if (currentBlockedUsers.indexOf(uid) === -1) currentBlockedUsers.push(uid);
+    if (activeChat && activeChat.kind === "dm" && activeChat.id === uid) {
+      updateDmMenu(activeChat.raw, true);
+      updateDmComposerState(true, false);
+    }
+  } catch (err) { console.error("[TRUBA] blockUser:", err); alert("Не удалось заблокировать пользователя"); }
+}
+
+async function unblockUser(uid) {
+  try {
+    await updateDoc(doc(db, "users", currentUid), { blockedUsers: arrayRemove(uid) });
+    currentBlockedUsers = currentBlockedUsers.filter(function (u) { return u !== uid; });
+    if (activeChat && activeChat.kind === "dm" && activeChat.id === uid) {
+      updateDmMenu(activeChat.raw, false);
+      updateDmComposerState(false, false);
+    }
+  } catch (err) { console.error("[TRUBA] unblockUser:", err); alert("Не удалось разблокировать пользователя"); }
+}
+
 /* ============================ GROUP / CHANNEL CHAT ============================ */
+
+function getGroupRole(group, uid) {
+  if (!group) return null;
+  if (group.ownerUid === uid) return "owner";
+  if (group.admins && group.admins.indexOf(uid) !== -1) return "admin";
+  if (group.members && group.members.indexOf(uid) !== -1) return "member";
+  return null;
+}
 
 function openGroupChat(group, rowEl) {
   activeChat = { kind: group.type, id: group.id, name: group.name, raw: group };
@@ -984,7 +1170,7 @@ function openGroupChat(group, rowEl) {
   el("chat-active").style.display = "flex";
   el("chat-header-name").textContent = group.name;
   el("chat-header-sub").textContent = group.type === "channel" ? "Канал" : "Группа";
-  el("chat-header").onclick = null;
+  el("chat-header").onclick = function () { openGroupInfo(group.id); };
   el("chat-header-actions").style.display = "none";
   enterMobileChat();
 
@@ -994,12 +1180,27 @@ function openGroupChat(group, rowEl) {
   if (unsubMessages) unsubMessages();
   if (unsubReads) { unsubReads(); unsubReads = null; }
   if (unsubContactPresence) { unsubContactPresence(); unsubContactPresence = null; }
+  if (unsubGroupDoc) { unsubGroupDoc(); unsubGroupDoc = null; }
+  if (unsubContactUserDoc) { unsubContactUserDoc(); unsubContactUserDoc = null; }
 
-  getDoc(doc(db, "groups", group.id)).then(function (snap) {
-    const isOwner = snap.exists() && snap.data().ownerUid === currentUid;
-    const canWrite = group.type === "group" || isOwner;
+  unsubGroupDoc = onSnapshot(doc(db, "groups", group.id), function (snap) {
+    if (!snap.exists()) return;
+    const data = snap.data();
+    activeChat.raw = Object.assign({ id: group.id }, data);
+    const role = getGroupRole(activeChat.raw, currentUid);
+
+    if (!role) {
+      // we've been removed from this group/channel — bail out of the chat
+      if (activeChat && activeChat.id === group.id) {
+        alert("Вы больше не участник этого " + (group.type === "channel" ? "канала" : "группы") + ".");
+        exitToNoChat();
+      }
+      return;
+    }
+
+    const canWrite = group.type === "group" || role === "owner" || role === "admin";
     el("draft-input").disabled = !canWrite;
-    el("draft-input").placeholder = canWrite ? "Написать сообщение..." : "Только владелец канала может писать";
+    el("draft-input").placeholder = canWrite ? "Написать сообщение..." : "Только админы канала могут писать";
     el("send-btn").disabled = !canWrite;
     el("attach-btn").disabled = !canWrite;
   });
@@ -1083,7 +1284,7 @@ function renderMessages() {
   box.scrollTop = box.scrollHeight;
 }
 
-/* ============================ SEND MESSAGE (text, with delay) ============================ */
+/* ============================ SEND MESSAGE ============================ */
 
 el("send-btn").addEventListener("click", function () { sendMessage(null); });
 el("draft-input").addEventListener("keydown", function (e) {
@@ -1095,15 +1296,11 @@ async function sendMessage(fileData) {
   const text = input.value.trim();
   if (!text && !fileData) return;
   if (!activeChat || activeChat.kind === "system") return;
+  if (activeChat.kind === "dm" && (currentBlockedUsers.indexOf(activeChat.id) !== -1 || contactBlockedMe)) return;
 
   const sendBtn = el("send-btn");
   input.value = "";
   input.disabled = true; sendBtn.disabled = true; sendBtn.classList.add("sending");
-
-  if (!fileData) {
-    const delay = 500 + Math.random() * 700;
-    await new Promise(function (resolve) { setTimeout(resolve, delay); });
-  }
 
   try {
     const base = { from: currentUid, fromNickname: currentNickname, text: text, ts: serverTimestamp() };
@@ -1296,7 +1493,7 @@ el("group-create-btn").addEventListener("click", async function () {
   try {
     const members = [currentUid].concat(groupMemberDraft.map(function (m) { return m.uid; }));
     const groupRef = await addDoc(collection(db, "groups"), {
-      name: name, type: groupModalType, ownerUid: currentUid, members: members, createdAt: serverTimestamp()
+      name: name, type: groupModalType, ownerUid: currentUid, admins: [], members: members, createdAt: serverTimestamp()
     });
     const chatEntry = { type: groupModalType, groupId: groupRef.id, groupName: name, updatedAt: serverTimestamp() };
     await Promise.all(members.map(function (uid) { return setDoc(doc(db, "users", uid, "chats", groupRef.id), chatEntry, { merge: true }); }));
@@ -1308,6 +1505,218 @@ el("group-create-btn").addEventListener("click", async function () {
     el("group-error").textContent = "Не удалось создать. Попробуйте ещё раз";
   }
   btn.disabled = false;
+});
+
+/* ============================ GROUP INFO / ROLES MANAGEMENT ============================ */
+
+el("group-info-close").addEventListener("click", function () { el("group-info-modal").style.display = "none"; });
+el("group-info-modal").addEventListener("click", function (e) { if (e.target.id === "group-info-modal") el("group-info-modal").style.display = "none"; });
+
+async function openGroupInfo(groupId) {
+  const snap = await getDoc(doc(db, "groups", groupId));
+  if (!snap.exists()) return;
+  const group = Object.assign({ id: groupId }, snap.data());
+  const myRole = getGroupRole(group, currentUid);
+  const canManage = myRole === "owner" || myRole === "admin";
+
+  el("group-info-icon").style.background = group.type === "channel" ? "linear-gradient(135deg,#E8A64C,#C77E1E)" : "linear-gradient(135deg,#7C6CF0,#4C3FC0)";
+  el("group-info-icon").textContent = group.name.charAt(0).toUpperCase();
+  el("group-info-name").textContent = group.name;
+  el("group-info-sub").textContent = (group.type === "channel" ? "Канал" : "Группа") + " · " + group.members.length + " участник(ов)";
+  el("group-info-members-label").textContent = "Участники (" + group.members.length + ")";
+
+  el("group-info-add-row").style.display = canManage ? "block" : "none";
+  el("group-info-search").value = "";
+  el("group-info-search-results").innerHTML = "";
+
+  await renderGroupInfoMembers(group, myRole);
+  renderGroupDangerZone(group, myRole);
+
+  el("group-info-modal").style.display = "flex";
+}
+
+async function renderGroupInfoMembers(group, myRole) {
+  const box = el("group-info-members-list");
+  box.innerHTML = '<div class="search-empty">Загрузка...</div>';
+
+  const snaps = await Promise.all(group.members.map(function (uid) { return getDoc(doc(db, "users", uid)); }));
+  box.innerHTML = "";
+
+  group.members.forEach(function (uid, i) {
+    const data = snaps[i].exists() ? snaps[i].data() : { username: "?", nickname: "Удалённый пользователь" };
+    const role = getGroupRole(group, uid);
+    const name = data.nickname || data.username;
+
+    const row = document.createElement("div");
+    row.className = "member-row";
+
+    const avatar = document.createElement("div");
+    avatar.className = "avatar"; avatar.style.width = "38px"; avatar.style.height = "38px"; avatar.style.fontSize = "14px";
+    avatar.style.background = hashColor(data.username || uid);
+    avatar.textContent = name.charAt(0).toUpperCase();
+
+    const info = document.createElement("div"); info.className = "info";
+    const nameRow = document.createElement("div"); nameRow.className = "name";
+    nameRow.appendChild(document.createTextNode(name + (uid === currentUid ? " (вы) " : " ")));
+    if (role === "owner" || role === "admin") {
+      const badge = document.createElement("span");
+      badge.className = "role-badge " + role;
+      badge.textContent = role === "owner" ? "владелец" : "админ";
+      nameRow.appendChild(badge);
+    }
+    const sub = document.createElement("div"); sub.className = "sub"; sub.textContent = "@" + (data.username || "?");
+    info.appendChild(nameRow); info.appendChild(sub);
+
+    row.appendChild(avatar); row.appendChild(info);
+
+    // who can act on whom: owner can manage everyone but self; admin can manage regular members only
+    const iAmOwner = myRole === "owner";
+    const iAmAdmin = myRole === "admin";
+    const targetIsSelf = uid === currentUid;
+    const canActOnTarget = !targetIsSelf && ((iAmOwner) || (iAmAdmin && role === "member"));
+
+    if (canActOnTarget) {
+      const menuBtn = document.createElement("button");
+      menuBtn.className = "member-menu-btn";
+      menuBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="5" r="1.5" fill="currentColor"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/><circle cx="12" cy="19" r="1.5" fill="currentColor"/></svg>';
+      const dropdown = document.createElement("div");
+      dropdown.className = "member-dropdown";
+
+      if (iAmOwner && role === "member") {
+        dropdown.appendChild(makeDropdownItem("Сделать админом", function () { promoteToAdmin(group.id, uid); }));
+      }
+      if (iAmOwner && role === "admin") {
+        dropdown.appendChild(makeDropdownItem("Снять админа", function () { demoteAdmin(group.id, uid); }));
+      }
+      dropdown.appendChild(makeDropdownItem("Удалить из " + (group.type === "channel" ? "канала" : "группы"), function () {
+        removeMember(group.id, uid, group.type);
+      }, true));
+
+      menuBtn.addEventListener("click", function (e) {
+        e.stopPropagation();
+        document.querySelectorAll(".member-dropdown.open").forEach(function (d) { if (d !== dropdown) d.classList.remove("open"); });
+        dropdown.classList.toggle("open");
+      });
+
+      row.style.position = "relative";
+      row.appendChild(menuBtn);
+      row.appendChild(dropdown);
+    }
+
+    box.appendChild(row);
+  });
+}
+
+function makeDropdownItem(label, onClick, danger) {
+  const item = document.createElement("div");
+  item.className = "member-dropdown-item" + (danger ? " danger" : "");
+  item.textContent = label;
+  item.addEventListener("click", function (e) { e.stopPropagation(); onClick(); });
+  return item;
+}
+
+document.addEventListener("click", function () {
+  document.querySelectorAll(".member-dropdown.open").forEach(function (d) { d.classList.remove("open"); });
+});
+
+function renderGroupDangerZone(group, myRole) {
+  const box = el("group-info-danger-zone");
+  box.innerHTML = "";
+  const btn = document.createElement("button");
+  btn.className = "ghost-btn";
+  btn.style.borderColor = "var(--danger)";
+  btn.style.color = "var(--danger)";
+  if (myRole === "owner") {
+    btn.textContent = "Удалить " + (group.type === "channel" ? "канал" : "группу");
+    btn.addEventListener("click", function () { deleteGroupEntirely(group); });
+  } else {
+    btn.textContent = "Покинуть " + (group.type === "channel" ? "канал" : "группу");
+    btn.addEventListener("click", function () { removeMember(group.id, currentUid, group.type, true); });
+  }
+  box.appendChild(btn);
+}
+
+async function promoteToAdmin(groupId, uid) {
+  try {
+    await updateDoc(doc(db, "groups", groupId), { admins: arrayUnion(uid) });
+    const snap = await getDoc(doc(db, "groups", groupId));
+    const group = Object.assign({ id: groupId }, snap.data());
+    await renderGroupInfoMembers(group, getGroupRole(group, currentUid));
+  } catch (err) { console.error("[TRUBA] promoteToAdmin:", err); alert("Не удалось назначить админа"); }
+}
+
+async function demoteAdmin(groupId, uid) {
+  try {
+    await updateDoc(doc(db, "groups", groupId), { admins: arrayRemove(uid) });
+    const snap = await getDoc(doc(db, "groups", groupId));
+    const group = Object.assign({ id: groupId }, snap.data());
+    await renderGroupInfoMembers(group, getGroupRole(group, currentUid));
+  } catch (err) { console.error("[TRUBA] demoteAdmin:", err); alert("Не удалось снять админа"); }
+}
+
+async function removeMember(groupId, uid, type, isSelf) {
+  const label = type === "channel" ? "канала" : "группы";
+  if (!confirm(isSelf ? ("Покинуть " + label + "?") : ("Удалить участника из " + label + "?"))) return;
+  try {
+    await updateDoc(doc(db, "groups", groupId), { members: arrayRemove(uid), admins: arrayRemove(uid) });
+    await deleteDoc(doc(db, "users", uid, "chats", groupId));
+    if (isSelf) {
+      el("group-info-modal").style.display = "none";
+      if (activeChat && activeChat.id === groupId) exitToNoChat();
+    } else {
+      const snap = await getDoc(doc(db, "groups", groupId));
+      const group = Object.assign({ id: groupId }, snap.data());
+      el("group-info-sub").textContent = (group.type === "channel" ? "Канал" : "Группа") + " · " + group.members.length + " участник(ов)";
+      await renderGroupInfoMembers(group, getGroupRole(group, currentUid));
+    }
+  } catch (err) { console.error("[TRUBA] removeMember:", err); alert("Не удалось выполнить действие"); }
+}
+
+async function deleteGroupEntirely(group) {
+  if (!confirm("Удалить " + (group.type === "channel" ? "канал" : "группу") + " «" + group.name + "» насовсем? Это действие необратимо.")) return;
+  try {
+    await Promise.all(group.members.map(function (uid) { return deleteDoc(doc(db, "users", uid, "chats", group.id)); }));
+    await deleteDoc(doc(db, "groups", group.id));
+    el("group-info-modal").style.display = "none";
+    if (activeChat && activeChat.id === group.id) exitToNoChat();
+  } catch (err) { console.error("[TRUBA] deleteGroup:", err); alert("Не удалось удалить"); }
+}
+
+let groupInfoSearchDebounce = null;
+el("group-info-search").addEventListener("input", function () {
+  clearTimeout(groupInfoSearchDebounce);
+  const raw = el("group-info-search").value.trim();
+  const box = el("group-info-search-results");
+  if (!raw) { box.innerHTML = ""; return; }
+  groupInfoSearchDebounce = setTimeout(async function () {
+    if (!activeChat || (activeChat.kind !== "group" && activeChat.kind !== "channel")) return;
+    const term = raw.toLowerCase().replace(/^@/, "");
+    try {
+      const q = query(collection(db, "users"), orderBy("usernameLower"), where("usernameLower", ">=", term), where("usernameLower", "<", term + "\uf8ff"), limit(10));
+      const snap = await getDocs(q);
+      box.innerHTML = "";
+      const group = activeChat.raw;
+      snap.forEach(function (item) {
+        if (group.members.indexOf(item.id) !== -1) return;
+        const data = item.data();
+        const user = { uid: item.id, username: data.username, nickname: data.nickname || data.username };
+        const row = buildUserRow(user, async function () {
+          try {
+            await updateDoc(doc(db, "groups", group.id), { members: arrayUnion(user.uid) });
+            await setDoc(doc(db, "users", user.uid, "chats", group.id), {
+              type: group.type, groupId: group.id, groupName: group.name, updatedAt: serverTimestamp()
+            }, { merge: true });
+            el("group-info-search").value = ""; box.innerHTML = "";
+            const freshSnap = await getDoc(doc(db, "groups", group.id));
+            const freshGroup = Object.assign({ id: group.id }, freshSnap.data());
+            el("group-info-sub").textContent = (freshGroup.type === "channel" ? "Канал" : "Группа") + " · " + freshGroup.members.length + " участник(ов)";
+            await renderGroupInfoMembers(freshGroup, getGroupRole(freshGroup, currentUid));
+          } catch (err) { console.error("[TRUBA] add member:", err); alert("Не удалось добавить участника"); }
+        });
+        box.appendChild(row);
+      });
+    } catch (err) { console.error("[TRUBA] group info search:", err); }
+  }, 300);
 });
 
 /* ============================ VOICE CALLS (WebRTC, DM only) ============================ */
