@@ -1,9 +1,0 @@
-{
-  "name": "TRUBA",
-  "short_name": "TRUBA",
-  "start_url": "./",
-  "display": "standalone",
-  "background_color": "#0E1526",
-  "theme_color": "#4C7EF3",
-  "icons": []
-}
