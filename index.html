@@ -4,6 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
 <title>TRUBA</title>
+<link rel="manifest" href="./manifest.webmanifest">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
@@ -271,6 +272,28 @@
   /* ---------- File input (hidden) ---------- */
   #file-input { display: none; }
 
+
+  body.theme-light {
+    --bg:#EEF2F7; --sidebar-bg:#FFFFFF; --chat-bg:#F4F7FB; --panel:#FFFFFF; --panel-2:#E8EDF5;
+    --border:#D7DFEC; --text:#172033; --muted:#65728A; --hover:#E9EEF7; --active:#DDE7F8;
+    --bubble-in:#FFFFFF; --bubble-out:linear-gradient(135deg,#4C7EF3,#2F5FD6); --bubble-out-text:#fff;
+    --warn-bg:#FFF7DA; --warn-text:#856A00;
+  }
+  .msg-actions { display:flex; gap:4px; margin-top:3px; opacity:0; transition:opacity .12s; }
+  .msg-row:hover .msg-actions { opacity:1; }
+  .msg-action { border:1px solid var(--border); background:var(--panel); color:var(--muted); border-radius:8px; padding:4px 7px; font-size:12px; cursor:pointer; }
+  .msg-action:hover { color:var(--text); background:var(--hover); }
+  .reaction-row { display:flex; flex-wrap:wrap; gap:4px; margin-top:5px; }
+  .reaction { border:1px solid var(--border); background:var(--panel); color:var(--text); border-radius:12px; padding:2px 7px; font-size:12px; cursor:pointer; }
+  .reaction.mine { border-color:var(--accent); }
+  .edited-label { font-size:10px; opacity:.7; margin-left:3px; }
+  .avatar.has-image { background-size:cover !important; background-position:center !important; color:transparent !important; }
+  .settings-row { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:11px 0; border-bottom:1px solid var(--border); }
+  .settings-title { font-weight:600; font-size:14px; }
+  .settings-sub { color:var(--muted); font-size:12px; margin-top:3px; }
+  .theme-select { background:var(--panel-2); color:var(--text); border:1px solid var(--border); border-radius:8px; padding:8px; }
+  .push-status { font-size:12px; color:var(--muted); margin-top:8px; line-height:1.4; }
+
   ::-webkit-scrollbar { width: 8px; }
   ::-webkit-scrollbar-thumb { background: #263A63; border-radius: 8px; }
   ::-webkit-scrollbar-track { background: transparent; }
@@ -427,6 +450,8 @@
     </button>
     <div class="modal-avatar-row">
       <div class="avatar" id="profile-avatar" style="width:72px;height:72px;font-size:26px;"></div>
+      <input type="file" id="avatar-input" accept="image/*" style="display:none;">
+      <button class="ghost-btn" id="avatar-upload-btn" style="width:auto;padding:8px 12px;margin-top:0;">Изменить аватар</button>
       <div class="modal-username" id="profile-username"></div>
     </div>
     <div class="modal-label">Ник</div>
@@ -435,6 +460,25 @@
     <textarea class="modal-bio-input" id="profile-bio-input" rows="3" placeholder="Напишите пару слов о себе..."></textarea>
     <button class="primary-btn" id="profile-save-btn">Сохранить</button>
     <div class="modal-save-hint" id="profile-save-hint"></div>
+  </div>
+</div>
+
+<!-- ================= SETTINGS MODAL ================= -->
+<div class="modal-overlay" id="settings-modal">
+  <div class="modal-box">
+    <button class="modal-close" id="settings-close">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M18 6 6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    </button>
+    <div style="font-size:20px;font-weight:700;margin-bottom:12px;">Настройки</div>
+    <div class="settings-row">
+      <div><div class="settings-title">Оформление</div><div class="settings-sub">Темная или светлая тема</div></div>
+      <select class="theme-select" id="theme-select"><option value="dark">Темная</option><option value="light">Светлая</option></select>
+    </div>
+    <div class="settings-row">
+      <div><div class="settings-title">Push-уведомления</div><div class="settings-sub">Уведомления о новых сообщениях</div></div>
+      <button class="ghost-btn" id="push-enable-btn" style="width:auto;margin:0;padding:8px 12px;">Включить</button>
+    </div>
+    <div class="push-status" id="push-status">Для настоящих push также нужен Firebase VAPID-ключ и service worker.</div>
   </div>
 </div>
 
@@ -540,6 +584,8 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 const storage = getStorage(app);
+const messaging = typeof window !== "undefined" && "Notification" in window ? getMessaging(app) : null;
+const FCM_VAPID_KEY = "YOUR_FIREBASE_VAPID_PUBLIC_KEY";
 
 const MAX_ACCOUNTS_PER_EMAIL = 3;
 const ICE_SERVERS = [
@@ -551,6 +597,9 @@ let currentUid = null;
 let currentUsername = null;
 let currentNickname = null;
 let currentBio = "";
+let currentAvatarUrl = "";
+let currentTheme = "dark";
+let pushToken = null;
 let currentBlockedUsers = [];
 let contactBlockedMe = false;
 
@@ -750,7 +799,7 @@ async function handleRegister() {
     const cred = await createUserWithEmailAndPassword(auth, aliasEmail, password);
     await setDoc(doc(db, "users", cred.user.uid), {
       username: username, usernameLower: lower, nickname: username,
-      aliasEmail: aliasEmail, baseEmail: baseEmail, bio: "", createdAt: serverTimestamp()
+      aliasEmail: aliasEmail, baseEmail: baseEmail, bio: "", createdAt: serverTimestamp(), avatarUrl: "", theme: "dark", notifications: true
     });
     await setDoc(doc(db, "usernames", lower), { uid: cred.user.uid });
     await setDoc(doc(db, "email_usage", baseEmail), { used: arrayUnion(aliasNum) }, { merge: true });
@@ -784,7 +833,7 @@ onAuthStateChanged(auth, async function (user) {
       currentBio = profile.data().bio || "";
       currentBlockedUsers = profile.data().blockedUsers || [];
     } else {
-      currentUsername = (user.email || "user").split("@")[0]; currentNickname = currentUsername; currentBio = ""; currentBlockedUsers = [];
+      currentUsername = (user.email || "user").split("@")[0]; currentNickname = currentUsername; currentBio = ""; currentAvatarUrl = ""; currentTheme = "dark"; currentBlockedUsers = [];
     }
   } catch (err) {
     console.error("[TRUBA] Profile:", err);
@@ -810,8 +859,8 @@ function showApp() {
   el("auth-screen").style.display = "none"; el("app-screen").style.display = "block";
   el("me-nickname").textContent = currentNickname;
   el("me-username").textContent = "@" + currentUsername;
-  el("me-avatar").style.background = hashColor(currentUsername);
-  el("me-avatar").textContent = currentUsername.charAt(0).toUpperCase();
+  renderAvatar(el("me-avatar"), currentAvatarUrl, currentUsername, currentNickname);
+  applyTheme(localStorage.getItem("truba-theme") || currentTheme || "dark");
   el("system-chat-row").onclick = openSystemChat;
   listenChats();
 }
@@ -828,7 +877,7 @@ document.addEventListener("click", function (e) {
   if (menu.style.display === "block" && !menu.contains(e.target) && e.target.id !== "hamburger-btn") menu.style.display = "none";
 });
 el("menu-profile").addEventListener("click", function () { el("hamburger-menu").style.display = "none"; openOwnProfile(); });
-el("menu-settings").addEventListener("click", function () { el("hamburger-menu").style.display = "none"; alert("Настройки появятся в одном из следующих обновлений TRUBA."); });
+el("menu-settings").addEventListener("click", function () { el("hamburger-menu").style.display = "none"; openSettings(); });
 el("menu-about").addEventListener("click", function () { el("hamburger-menu").style.display = "none"; alert("TRUBA — простой и быстрый мессенджер со звонками, файлами и группами."); });
 el("menu-logout").addEventListener("click", async function () {
   el("hamburger-menu").style.display = "none";
@@ -856,8 +905,7 @@ function buildUserRow(user, onClick) {
   row.className = "user-row";
   const avatar = document.createElement("div");
   avatar.className = "avatar"; avatar.style.width = "44px"; avatar.style.height = "44px"; avatar.style.fontSize = "16px";
-  avatar.style.background = hashColor(user.username);
-  avatar.textContent = (user.nickname || user.username).charAt(0).toUpperCase();
+  renderAvatar(avatar, user.avatarUrl || "", user.username, user.nickname);
   const info = document.createElement("div");
   const name = document.createElement("div"); name.className = "user-row-name"; name.textContent = user.nickname || user.username;
   const sub = document.createElement("div"); sub.className = "user-row-sub"; sub.textContent = "@" + user.username;
@@ -932,7 +980,7 @@ function listenChats() {
         list.appendChild(row);
         return;
       }
-      const user = { uid: data.contactUid, username: data.contactUsername, nickname: data.contactNickname || data.contactUsername };
+      const user = { uid: data.contactUid, username: data.contactUsername, nickname: data.contactNickname || data.contactUsername, avatarUrl: data.contactAvatarUrl || "" };
       const row = buildUserRow(user, function () { openDM(user, row); });
       row.appendChild(makeRowDeleteBtn(function (e) { e.stopPropagation(); deleteChatFromList(user.uid, "dm", user); }));
       list.appendChild(row);
@@ -1040,8 +1088,7 @@ function openDM(user, rowEl) {
   el("chat-header-actions").style.display = "flex";
   enterMobileChat();
 
-  el("chat-avatar").style.background = hashColor(user.username);
-  el("chat-avatar").textContent = (user.nickname || user.username).charAt(0).toUpperCase();
+  renderAvatar(el("chat-avatar"), user.avatarUrl || "", user.username, user.nickname);
   el("draft-input").disabled = false; el("draft-input").placeholder = "Написать сообщение...";
   el("send-btn").disabled = false; el("attach-btn").disabled = false;
 
@@ -1055,7 +1102,10 @@ function openDM(user, rowEl) {
   updateDmMenu(user);
 
   unsubContactUserDoc = onSnapshot(doc(db, "users", user.uid), function (snap) {
-    const blockedMe = snap.exists() && (snap.data().blockedUsers || []).indexOf(currentUid) !== -1;
+    const contactData = snap.exists() ? snap.data() : {};
+    const blockedMe = (contactData.blockedUsers || []).indexOf(currentUid) !== -1;
+    if (contactData.nickname) el("chat-header-name").textContent = contactData.nickname;
+    renderAvatar(el("chat-avatar"), contactData.avatarUrl || user.avatarUrl || "", user.username, contactData.nickname || user.nickname);
     contactBlockedMe = blockedMe;
     const blockedByMe = currentBlockedUsers.indexOf(user.uid) !== -1;
     updateDmComposerState(blockedByMe, blockedMe);
@@ -1074,7 +1124,7 @@ function openDM(user, rowEl) {
   const q = query(collection(db, "messages"), where("convId", "==", cId));
   unsubMessages = onSnapshot(q, function (snapshot) {
     cachedMessages = [];
-    snapshot.forEach(function (item) { cachedMessages.push(item.data()); });
+    snapshot.forEach(function (item) { cachedMessages.push(Object.assign({ _id: item.id }, item.data())); });
     cachedMessages.sort(function (a, b) { return tsMillis(a.ts) - tsMillis(b.ts); });
     renderMessages();
     markRead(cId);
@@ -1208,7 +1258,7 @@ function openGroupChat(group, rowEl) {
   const q = query(collection(db, "messages"), where("groupId", "==", group.id));
   unsubMessages = onSnapshot(q, function (snapshot) {
     cachedMessages = [];
-    snapshot.forEach(function (item) { cachedMessages.push(item.data()); });
+    snapshot.forEach(function (item) { cachedMessages.push(Object.assign({ _id: item.id }, item.data())); });
     cachedMessages.sort(function (a, b) { return tsMillis(a.ts) - tsMillis(b.ts); });
     renderMessages();
   }, function (err) { console.error("[TRUBA] Group messages:", err); });
@@ -1243,7 +1293,10 @@ function renderMessages() {
     const bubble = document.createElement("div");
     bubble.className = "bubble";
 
-    if (m.fileUrl) {
+    if (m.deleted) {
+      bubble.style.opacity = ".65";
+      bubble.textContent = "Сообщение удалено";
+    } else if (m.fileUrl) {
       if (m.fileType && m.fileType.indexOf("image/") === 0) {
         const img = document.createElement("img");
         img.className = "msg-img"; img.src = m.fileUrl; img.alt = m.fileName || "image";
@@ -1253,21 +1306,26 @@ function renderMessages() {
         const chip = document.createElement("a");
         chip.href = m.fileUrl; chip.target = "_blank"; chip.style.color = "inherit"; chip.style.textDecoration = "none";
         chip.className = "file-chip";
-        chip.innerHTML = '<div class="file-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 2v6h6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>' +
-          '<div><div class="file-name">' + escapeHtml(m.fileName || "файл") + '</div><div class="file-size">' + formatBytes(m.fileSize) + '</div></div>';
+        chip.innerHTML = '<div class="file-icon">📎</div><div><div class="file-name">' +
+          escapeHtml(m.fileName || "файл") + '</div><div class="file-size">' + formatBytes(m.fileSize) + '</div></div>';
         bubble.appendChild(chip);
       }
       if (m.text) {
-        const cap = document.createElement("div"); cap.style.marginTop = "6px"; cap.innerHTML = escapeHtml(m.text);
+        const cap = document.createElement("div"); cap.style.marginTop = "6px"; cap.textContent = m.text;
         bubble.appendChild(cap);
       }
     } else {
-      bubble.innerHTML = escapeHtml(m.text || "");
+      bubble.textContent = m.text || "";
     }
+    row.appendChild(bubble);
 
     const meta = document.createElement("div");
     meta.className = "msg-meta";
     meta.textContent = timeStr(m.ts);
+    if (m.edited && !m.deleted) {
+      const edited = document.createElement("span"); edited.className = "edited-label"; edited.textContent = "(изменено)";
+      meta.appendChild(edited);
+    }
 
     if (mine && activeChat && activeChat.kind === "dm") {
       const read = tsMillis(m.ts) <= contactLastReadMillis && contactLastReadMillis > 0;
@@ -1276,12 +1334,83 @@ function renderMessages() {
       tick.textContent = read ? "✓✓" : "✓";
       meta.appendChild(tick);
     }
-
-    row.appendChild(bubble);
     row.appendChild(meta);
+
+    if (!m.deleted) {
+      const actions = document.createElement("div");
+      actions.className = "msg-actions";
+      ["❤️","👍","😂","🔥","😮","😢"].forEach(function(emoji) {
+        const b = document.createElement("button");
+        b.className = "msg-action"; b.textContent = emoji;
+        b.title = "Поставить реакцию";
+        b.onclick = function(e){ e.stopPropagation(); toggleReaction(m._id, emoji); };
+        actions.appendChild(b);
+      });
+      if (mine) {
+        const edit = document.createElement("button");
+        edit.className = "msg-action"; edit.textContent = "✏️";
+        edit.title = "Редактировать";
+        edit.onclick = function(e){ e.stopPropagation(); editMessage(m); };
+        actions.appendChild(edit);
+        const del = document.createElement("button");
+        del.className = "msg-action"; del.textContent = "🗑️";
+        del.title = "Удалить";
+        del.onclick = function(e){ e.stopPropagation(); deleteMessageForEveryone(m); };
+        actions.appendChild(del);
+      }
+      row.appendChild(actions);
+
+      const reactionMap = m.reactions || {};
+      const counts = {};
+      Object.keys(reactionMap).forEach(function(uid) {
+        const em = reactionMap[uid]; if (em) counts[em] = (counts[em] || 0) + 1;
+      });
+      const rr = document.createElement("div"); rr.className = "reaction-row";
+      Object.keys(counts).forEach(function(em) {
+        const rb = document.createElement("button");
+        rb.className = "reaction " + (reactionMap[currentUid] === em ? "mine" : "");
+        rb.textContent = em + " " + counts[em];
+        rb.onclick = function(){ toggleReaction(m._id, em); };
+        rr.appendChild(rb);
+      });
+      if (Object.keys(counts).length) row.appendChild(rr);
+    }
     box.appendChild(row);
   });
   box.scrollTop = box.scrollHeight;
+}
+
+async function toggleReaction(messageId, emoji) {
+  if (!messageId || !currentUid) return;
+  const m = cachedMessages.find(function(x){ return x._id === messageId; });
+  if (!m) return;
+  const reactions = Object.assign({}, m.reactions || {});
+  if (reactions[currentUid] === emoji) delete reactions[currentUid];
+  else reactions[currentUid] = emoji;
+  try {
+    await updateDoc(doc(db, "messages", messageId), { reactions: reactions });
+  } catch (err) { console.error("[TRUBA] Reaction:", err); alert("Не удалось поставить реакцию"); }
+}
+
+async function editMessage(m) {
+  if (!m || m.from !== currentUid || m.deleted) return;
+  const next = prompt("Изменить сообщение:", m.text || "");
+  if (next === null) return;
+  const text = next.trim();
+  if (!text) return;
+  try {
+    await updateDoc(doc(db, "messages", m._id), { text: text, edited: true, editedAt: serverTimestamp() });
+  } catch (err) { console.error("[TRUBA] Edit:", err); alert("Не удалось изменить сообщение"); }
+}
+
+async function deleteMessageForEveryone(m) {
+  if (!m || m.from !== currentUid || m.deleted) return;
+  if (!confirm("Удалить это сообщение у всех?")) return;
+  try {
+    await updateDoc(doc(db, "messages", m._id), {
+      deleted: true, text: "", fileUrl: null, fileName: null, fileType: null, fileSize: null, reactions: {}
+    });
+  } catch (err) { console.error("[TRUBA] Delete message:", err); alert("Не удалось удалить сообщение"); }
 }
 
 /* ============================ SEND MESSAGE ============================ */
@@ -1313,10 +1442,10 @@ async function sendMessage(fileData) {
 
       await setDoc(doc(db, "users", currentUid, "chats", activeChat.id), {
         contactUid: activeChat.id, contactUsername: activeChat.raw.username,
-        contactNickname: activeChat.raw.nickname || activeChat.raw.username, updatedAt: serverTimestamp()
+        contactNickname: activeChat.raw.nickname || activeChat.raw.username, contactAvatarUrl: activeChat.raw.avatarUrl || "", updatedAt: serverTimestamp()
       }, { merge: true });
       await setDoc(doc(db, "users", activeChat.id, "chats", currentUid), {
-        contactUid: currentUid, contactUsername: currentUsername, contactNickname: currentNickname, updatedAt: serverTimestamp()
+        contactUid: currentUid, contactUsername: currentUsername, contactNickname: currentNickname, contactAvatarUrl: currentAvatarUrl || "", updatedAt: serverTimestamp()
       }, { merge: true });
     } else {
       base.groupId = activeChat.id;
@@ -1364,9 +1493,26 @@ el("me-profile-btn").addEventListener("click", openOwnProfile);
 el("profile-close").addEventListener("click", function () { el("profile-modal").style.display = "none"; });
 el("profile-modal").addEventListener("click", function (e) { if (e.target.id === "profile-modal") el("profile-modal").style.display = "none"; });
 
+function applyTheme(theme) {
+  currentTheme = theme === "light" ? "light" : "dark";
+  document.body.classList.toggle("theme-light", currentTheme === "light");
+  localStorage.setItem("truba-theme", currentTheme);
+}
+function renderAvatar(node, url, username, nickname) {
+  if (!node) return;
+  if (url) {
+    node.classList.add("has-image");
+    node.style.background = "url('" + url.replace(/'/g, "%27") + "') center/cover no-repeat";
+    node.textContent = "";
+  } else {
+    node.classList.remove("has-image");
+    node.style.background = hashColor(username || nickname || "?");
+    node.textContent = (nickname || username || "?").charAt(0).toUpperCase();
+  }
+}
+
 function openOwnProfile() {
-  el("profile-avatar").style.background = hashColor(currentUsername);
-  el("profile-avatar").textContent = currentUsername.charAt(0).toUpperCase();
+  renderAvatar(el("profile-avatar"), currentAvatarUrl, currentUsername, currentNickname);
   el("profile-username").textContent = "@" + currentUsername;
   el("profile-nickname-input").value = currentNickname || currentUsername;
   el("profile-bio-input").value = currentBio || "";
@@ -1380,9 +1526,15 @@ el("profile-save-btn").addEventListener("click", async function () {
   if (!nickname) nickname = currentUsername;
   const btn = el("profile-save-btn"); btn.disabled = true;
   try {
-    await setDoc(doc(db, "users", currentUid), { bio: bio, nickname: nickname }, { merge: true });
+    await setDoc(doc(db, "users", currentUid), { bio: bio, nickname: nickname, avatarUrl: currentAvatarUrl }, { merge: true });
+    try {
+      const chats = await getDocs(collection(db, "users", currentUid, "chats"));
+      await Promise.all(chats.docs.map(function(d){ return setDoc(d.ref, { contactNickname: nickname, contactAvatarUrl: currentAvatarUrl || "" }, {merge:true}); }));
+    } catch(syncErr) { console.warn("[TRUBA] chat profile sync:", syncErr); }
     currentBio = bio; currentNickname = nickname;
     el("me-nickname").textContent = currentNickname;
+    renderAvatar(el("me-avatar"), currentAvatarUrl, currentUsername, currentNickname);
+    renderAvatar(el("profile-avatar"), currentAvatarUrl, currentUsername, currentNickname);
     el("profile-save-hint").textContent = "Сохранено ✓";
   } catch (err) {
     console.error("[TRUBA] Save profile:", err);
@@ -1391,12 +1543,39 @@ el("profile-save-btn").addEventListener("click", async function () {
   btn.disabled = false;
 });
 
+el("avatar-upload-btn").addEventListener("click", function(){ el("avatar-input").click(); });
+el("avatar-input").addEventListener("change", async function(){
+  const file = el("avatar-input").files[0];
+  el("avatar-input").value = "";
+  if (!file) return;
+  if (!file.type.startsWith("image/")) return alert("Выберите изображение");
+  if (file.size > 5 * 1024 * 1024) return alert("Аватар должен быть меньше 5 МБ");
+  try {
+    const avatarRef = ref(storage, "avatars/" + currentUid + "/" + Date.now() + "_" + file.name.replace(/[^a-zA-Z0-9._-]/g,"_"));
+    await uploadBytes(avatarRef, file);
+    currentAvatarUrl = await getDownloadURL(avatarRef);
+    await setDoc(doc(db, "users", currentUid), { avatarUrl: currentAvatarUrl }, { merge: true });
+    try {
+      const chats = await getDocs(collection(db, "users", currentUid, "chats"));
+      await Promise.all(chats.docs.map(function(d){ return setDoc(d.ref, { contactAvatarUrl: currentAvatarUrl }, {merge:true}); }));
+    } catch(syncErr) { console.warn("[TRUBA] avatar chat sync:", syncErr); }
+    renderAvatar(el("profile-avatar"), currentAvatarUrl, currentUsername, currentNickname);
+    renderAvatar(el("me-avatar"), currentAvatarUrl, currentUsername, currentNickname);
+    el("profile-save-hint").textContent = "Аватар сохранён ✓";
+  } catch(err) {
+    console.error("[TRUBA] Avatar:", err);
+    el("profile-save-hint").textContent = "Не удалось загрузить аватар";
+  }
+});
+
+el("profile-close").addEventListener("click", function () { el("profile-modal").style.display = "none"; });
+el("profile-modal").addEventListener("click", function (e) { if (e.target.id === "profile-modal") el("profile-modal").style.display = "none"; });
+
 el("contact-close").addEventListener("click", function () { el("contact-modal").style.display = "none"; });
 el("contact-modal").addEventListener("click", function (e) { if (e.target.id === "contact-modal") el("contact-modal").style.display = "none"; });
 
 async function openContactProfile(user) {
-  el("contact-modal-avatar").style.background = hashColor(user.username);
-  el("contact-modal-avatar").textContent = (user.nickname || user.username).charAt(0).toUpperCase();
+  renderAvatar(el("contact-modal-avatar"), user.avatarUrl || "", user.username, user.nickname);
   el("contact-modal-nickname").textContent = user.nickname || user.username;
   el("contact-modal-username").textContent = "@" + user.username;
   el("contact-modal-bio").textContent = "Загрузка...";
@@ -1406,12 +1585,57 @@ async function openContactProfile(user) {
     if (snap.exists()) {
       const data = snap.data();
       el("contact-modal-nickname").textContent = data.nickname || user.username;
-      el("contact-modal-avatar").textContent = (data.nickname || user.username).charAt(0).toUpperCase();
+      renderAvatar(el("contact-modal-avatar"), data.avatarUrl || "", user.username, data.nickname || user.username);
       el("contact-modal-bio").textContent = data.bio || "Пользователь пока ничего о себе не написал";
-    } else {
-      el("contact-modal-bio").textContent = "Пользователь пока ничего о себе не написал";
-    }
+    } else el("contact-modal-bio").textContent = "Пользователь пока ничего о себе не написал";
   } catch (err) { el("contact-modal-bio").textContent = "Не удалось загрузить"; }
+}
+
+function openSettings() {
+  el("theme-select").value = currentTheme;
+  el("settings-modal").style.display = "flex";
+}
+el("settings-close").addEventListener("click", function(){ el("settings-modal").style.display="none"; });
+el("settings-modal").addEventListener("click", function(e){ if(e.target.id==="settings-modal") el("settings-modal").style.display="none"; });
+el("theme-select").addEventListener("change", async function(){
+  applyTheme(this.value);
+  try { await setDoc(doc(db,"users",currentUid), {theme:currentTheme}, {merge:true}); } catch(e){ console.error(e); }
+});
+
+async function enablePushNotifications() {
+  if (!("Notification" in window)) {
+    el("push-status").textContent = "Этот браузер не поддерживает push-уведомления.";
+    return;
+  }
+  if (!messaging) {
+    el("push-status").textContent = "Firebase Messaging недоступен.";
+    return;
+  }
+  if (FCM_VAPID_KEY === "YOUR_FIREBASE_VAPID_PUBLIC_KEY") {
+    el("push-status").textContent = "Вставь Web Push certificate key из Firebase Console в FCM_VAPID_KEY.";
+    return;
+  }
+  try {
+    const permission = await Notification.requestPermission();
+    if (permission !== "granted") { el("push-status").textContent = "Уведомления запрещены браузером."; return; }
+    const registration = await navigator.serviceWorker.register("./firebase-messaging-sw.js");
+    pushToken = await getToken(messaging, { vapidKey: FCM_VAPID_KEY, serviceWorkerRegistration: registration });
+    if (pushToken) {
+      await setDoc(doc(db,"users",currentUid), { fcmTokens: arrayUnion(pushToken), notifications:true }, {merge:true});
+      el("push-status").textContent = "Push-уведомления включены ✓";
+    } else el("push-status").textContent = "Не удалось получить токен устройства.";
+  } catch(err) {
+    console.error("[TRUBA] Push:", err);
+    el("push-status").textContent = "Ошибка push: " + (err.message || err);
+  }
+}
+el("push-enable-btn").addEventListener("click", enablePushNotifications);
+
+if ("Notification" in window && Notification.permission === "granted" && messaging) {
+  onMessage(messaging, function(payload){
+    const n = payload.notification || {};
+    if (document.visibilityState !== "visible") new Notification(n.title || "TRUBA", {body:n.body || "Новое сообщение", icon:n.icon || "./icon.png"});
+  });
 }
 
 /* ============================ CREATE GROUP / CHANNEL ============================ */
@@ -1493,7 +1717,7 @@ el("group-create-btn").addEventListener("click", async function () {
   try {
     const members = [currentUid].concat(groupMemberDraft.map(function (m) { return m.uid; }));
     const groupRef = await addDoc(collection(db, "groups"), {
-      name: name, type: groupModalType, ownerUid: currentUid, admins: [], members: members, createdAt: serverTimestamp()
+      name: name, type: groupModalType, ownerUid: currentUid, admins: [], members: members, createdAt: serverTimestamp(), avatarUrl: "", theme: "dark", notifications: true
     });
     const chatEntry = { type: groupModalType, groupId: groupRef.id, groupName: name, updatedAt: serverTimestamp() };
     await Promise.all(members.map(function (uid) { return setDoc(doc(db, "users", uid, "chats", groupRef.id), chatEntry, { merge: true }); }));
