@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
 <title>TRUBA</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
@@ -79,6 +79,8 @@
   @supports (height: 100dvh) {
     #app-screen { height: 100dvh; }
   }
+  /* JS keeps --app-vh in sync with the real visible area (handles WebView/keyboard quirks) */
+  #app-screen.js-height { height: var(--app-vh, 100vh) !important; }
   .app-shell { display: flex; width: 100%; height: 100%; }
 
   /* ---------- Mobile: single pane at a time, like Telegram's mobile app ---------- */
@@ -439,7 +441,32 @@ const WELCOME_MESSAGES = [
 
 function el(id) { return document.getElementById(id); }
 
-/* ---------- Mobile single-pane navigation ---------- */
+/* ---------- Real viewport height tracking ----------
+   Some mobile browsers/WebViews (this matters especially inside the
+   packaged APK) don't shrink 100vh/100dvh when the on-screen keyboard
+   opens, which pushes the message composer off-screen and makes it
+   look like chats are "stuck full screen" and impossible to type in.
+   We track the real visible height ourselves and keep it in sync. */
+function updateAppHeight() {
+  const h = (window.visualViewport ? window.visualViewport.height : window.innerHeight);
+  document.documentElement.style.setProperty("--app-vh", h + "px");
+  el("app-screen").classList.add("js-height");
+}
+updateAppHeight();
+window.addEventListener("resize", updateAppHeight);
+if (window.visualViewport) {
+  window.visualViewport.addEventListener("resize", updateAppHeight);
+  window.visualViewport.addEventListener("scroll", updateAppHeight);
+}
+
+// When the composer gets focus (keyboard opens), make sure it's actually
+// visible instead of hidden behind the keyboard.
+el("draft-input").addEventListener("focus", function () {
+  setTimeout(function () {
+    updateAppHeight();
+    el("draft-input").scrollIntoView({ block: "end", behavior: "smooth" });
+  }, 300);
+});
 function isMobileView() { return window.innerWidth <= 768; }
 function enterMobileChat() {
   if (isMobileView()) el("app-shell").classList.add("chat-open");
